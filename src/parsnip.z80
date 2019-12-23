@@ -597,7 +597,9 @@ _:
 
 eval_fix:
   call popoperand_ui8
+  inc a
   cp 20
+  dec a
   jp nc,err_syntax
   ld (fmtDigits),a
   jp pop_end_of_params
@@ -857,7 +859,15 @@ _:
 
 eval_sto:
   call popoperand_var
-  push af
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ;HL points to the var's pointer
+  push hl
   call pop_operand
   ld hl,eval_sto_LUT
   jp jumptableindex

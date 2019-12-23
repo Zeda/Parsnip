@@ -1,6 +1,6 @@
 ;This is for the sto token (-->)
 ;Input:
-;   stack is the var#
+;   stack is the var pointer's pointer
 ;   DE points to the data to sto
 ;   if it is type_str or type_raw, BC is the size
 
@@ -40,63 +40,38 @@ sto_fixed1616:
   ld a,type_fixed1616
   jr sto_
 
+sto_true:
+  ld a,type_true
+  jr sto_
+
+sto_false:
+  ld a,type_false
+  jr sto_
+
+sto_single:
+  ld a,type_single
+  jr sto_
+
+sto_xfloat:
+  ld a,type_xfloat
+  jr sto_
+
 sto_ui16:
   ld a,type_ui16
 sto_:
-  push de   ;dataptr
-  push af   ;type
-  ld hl,type_size_LUT
-  add a,l
-  ld l,a
-  jr nc,$+3
-  inc h
-  ld c,(hl)
-  ld b,0
-  push bc   ;size
-  call alloc
-  pop bc
-  pop af
-  ld (hl),a
-  ex de,hl
   pop hl
+  ;HL points to the var's pointer
   push de
-  inc de
-  dec bc
-  ldir
+  call createvar
   pop de
-sto_var_DE:
-;stack has the low byte as the var#
-;DE is the pointer to store
-  pop af
-  sub 'A'
-  add a,a
-  ld hl,pvars
-  add a,l
-  ld l,a
-  jr nc,$+3
-  inc h
-  ld (hl),e
-  inc hl
-  ld (hl),d
+  dec c
+  ret z
+  ex de,hl
+  ldir
   ret
 
 sto_var:
   jp err_syntax
-
-sto_true:
-  ld a,type_true
-  jr +_
-sto_false:
-  ld a,type_false
-_:
-  push af
-  ld bc,1
-  call alloc
-  pop af
-  ld (hl),a
-  ex de,hl
-  jr sto_var_DE
-
 
 sto_str_ref:
   ld e,(hl)
@@ -165,30 +140,82 @@ _:
   jr z,$+4
   ldir
   pop de
-  jr sto_var_DE
 
-sto_single:
-  push de
-  ld bc,5
-  call alloc
-  ld (hl),type_single
-  ex de,hl
   pop hl
-  push de
-  inc de
-  call mov4_p0
-  pop de
-  jp sto_var_DE
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  ret
 
-sto_xfloat:
+
+createvar:
+;Inputs:
+;   HL points to the var's pointer
+;   A is the type, cannot be variable-sized types
+;Output:
+;   HL points to the var data
+;   DE points to the data to copy
+;   BC is the size (so BC-1 is the size of the data)
+;   A is the type
+
+  push af
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  ld c,a
+
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld a,d
+  or e
+  jr z,allocvar
+
+  ;The var exists, so let's allocate enough space.
+  ;C is the size of the input type
+  ;compare against the new
+  ;
+  ;If C is 0, it is a variable-size type, so we're just gonna create a new var.
+  inc c
+  dec c
+  jp z,err_internal_fatal
+
+  ld a,(de)
   push de
-  ld bc,11
-  call alloc
-  ld (hl),type_xfloat
-  ex de,hl
-  pop hl
-  push de
-  inc de
-  call mov10_p0
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
   pop de
-  jp sto_var_DE
+  cp c
+  jr nz,allocvar
+  ;they are the same size, so let's overwrite!
+  ld b,0
+  pop af
+  ex de,hl
+  ld (hl),a
+  inc hl
+  ret
+
+allocvar:
+  push hl   ;top byte of var's pointer
+  ;need to allocate C bytes
+  ld b,0
+  push bc
+  call alloc
+  pop bc
+  pop de
+  pop af
+  ld (hl),a
+  ex de,hl
+  ld (hl),d
+  dec hl
+  ld (hl),e
+  ex de,hl
+  inc hl
+  ret
