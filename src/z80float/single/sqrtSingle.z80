@@ -1,0 +1,79 @@
+#ifndef included_sqrtSingle
+#define included_sqrtSingle
+#include "routines/pushpop.z80"
+#include "routines/mov4.z80"
+#include "routines/sqrtHLIX.z80"
+#include "constants.z80"
+
+;Uses 3 bytes at scrap
+sqrtSingle:
+;552+{0,19}+8{0,3+{0,3}}+pushpop+sqrtHLIX
+;min: 1784
+;max: 1987
+;avg: 1872
+  call pushpop
+  push bc
+  ld c,(hl)
+  inc hl
+  ld e,(hl)
+  inc hl
+  ld a,(hl)
+  add a,a
+  jp c,sqrtSingle_NaN
+  scf
+  rra
+  ld d,a
+  inc hl
+  ld a,(hl)
+  or a
+  jp z,sqrtSingle_special
+  add a,80h
+  rra
+  push af   ;new exponent
+  jr c,+_
+  srl d
+  rr e
+  rr c
+_:
+  ex de,hl
+  ld ixh,c
+  ld ixl,0
+  call sqrtHLIX
+;AHL is the new remainder
+;Need to divide by 2, then divide by the 16-bit (var_x+4)
+  rra
+  ld a,h
+;HL/DE to 8 bits
+;We are just going to approximate it
+  res 0,l \     jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+  sla l \ rla \ jr c,$+5 \ cp d \ jr c,$+4 \ sub d \ inc l
+
+  pop bc
+  ld a,l
+  pop hl
+  ;BDEA
+  ld (hl),a
+  inc hl
+  ld (hl),e
+  inc hl
+  res 7,d
+  ld (hl),d
+  inc hl
+  ld (hl),b
+  ret
+sqrtSingle_NaN:
+  ld hl,const_NaN
+  pop de
+  jp mov4
+sqrtSingle_special:
+  dec hl
+  dec hl
+  pop de
+  jp mov4
+#endif

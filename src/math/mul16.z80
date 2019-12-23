@@ -1,0 +1,80 @@
+;===============================================================
+HL_Times_BC:
+;===============================================================
+;Inputs:
+;     HL and BC are factors
+;Outputs:
+;     DEHL is the 32-bit value of the product
+;     BC is unchanged
+;     A is 0
+;===============================================================
+  ex de,hl
+#ifndef speed
+;===============================================================
+DE_Times_BC:
+;===============================================================
+;Inputs:
+;     DE and BC are factors
+;Outputs:
+;     DEHL is the 32-bit value of the product
+;     BC is unchanged
+;20 bytes
+;Speed: 846cc+16{0,13}
+;min: 846cc
+;max: 1054cc
+;avg: 950cc
+  ld hl,0
+  ld a,e
+  ld e,16
+_:
+  add hl,hl
+  rla
+  rl d
+  jr nc,$+5
+  add hl,bc
+  adc a,0
+  dec e
+  jr nz,-_
+  ld e,a
+  ret
+#else
+DE_Times_BC:
+;132+2*DE_Times_A
+;min: 546cc
+;max: 732cc
+;avg: 639cc
+;21 bytes
+  ld a,e
+  call DE_Times_A
+  push hl
+  push af
+  ld a,d
+  call DE_Times_A
+  pop bc
+  pop de
+  ld c,d
+  add hl,bc
+  adc a,0
+  ld d,l
+  ld l,h
+  ld h,a
+  ex de,hl
+  ret
+DE_Times_A:
+;207+6{0,10}+{0,19}+{0,14}
+;min: 207cc
+;max: 300cc
+;avg: 253.5
+;51 bytes
+  ld hl,0
+  ld e,h
+  add a,a \ jr nc,$+5 \ ld h,b \ ld l,c
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ jr nc,$+4 \ add hl,bc \ adc a,e
+  add hl,hl \ rla \ ret nc \ add hl,bc \ adc a,e
+  ret
+#endif

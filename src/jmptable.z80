@@ -1,0 +1,5 @@
+;start=0x4023
+
+#if $!=$4023
+.echo "Update gramPkg.z80 with new cmdJmp : ",$-$4000
+#endif

@@ -1,0 +1,35 @@
+eval_sto_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw sto_ui8
+  .dw sto_ui16
+  .dw sto_ui32
+  .dw sto_fixed88
+  .dw sto_fixed1616
+  .dw sto_var
+  .dw sto_true
+  .dw sto_false
+  .dw sto_tstr_ref
+  .dw sto_raw
+  .dw sto_str
+  .dw sto_str_ref
+  .dw sto_single
+  .dw sto_xfloat
+_:
+
+
+sto_ui8:
+sto_ui16:
+sto_ui32:
+sto_fixed88:
+sto_fixed1616:
+sto_var:
+sto_true:
+sto_false:
+sto_tstr_ref:
+sto_raw:
+sto_str:
+sto_str_ref:
+sto_single:
+sto_xfloat:
+  jp err_syntax

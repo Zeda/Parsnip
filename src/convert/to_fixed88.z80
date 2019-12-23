@@ -1,0 +1,33 @@
+to_fixed88_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_fixed88
+  .dw ui16_convert_to_fixed88
+  .dw ui32_convert_to_fixed88
+  .dw fixed88_convert_to_fixed88
+  .dw fixed1616_convert_to_fixed88
+  .dw var_convert_to_fixed88
+  .dw true_convert_to_fixed88
+  .dw false_convert_to_fixed88
+  .dw tstr_ref_convert_to_fixed88
+  .dw raw_convert_to_fixed88
+  .dw str_convert_to_fixed88
+  .dw str_ref_convert_to_fixed88
+  .dw single_convert_to_fixed88
+  .dw xfloat_convert_to_fixed88
+_:
+
+ui8_convert_to_fixed88:
+ui16_convert_to_fixed88:
+ui32_convert_to_fixed88:
+fixed88_convert_to_fixed88:
+fixed1616_convert_to_fixed88:
+var_convert_to_fixed88:
+true_convert_to_fixed88:
+false_convert_to_fixed88:
+tstr_ref_convert_to_fixed88:
+raw_convert_to_fixed88:
+str_convert_to_fixed88:
+str_ref_convert_to_fixed88:
+single_convert_to_fixed88:
+xfloat_convert_to_fixed88:
+  jp err_syntax

@@ -1,0 +1,33 @@
+to_ui8_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_ui8
+  .dw ui16_convert_to_ui8
+  .dw ui32_convert_to_ui8
+  .dw fixed88_convert_to_ui8
+  .dw fixed1616_convert_to_ui8
+  .dw var_convert_to_ui8
+  .dw true_convert_to_ui8
+  .dw false_convert_to_ui8
+  .dw tstr_ref_convert_to_ui8
+  .dw raw_convert_to_ui8
+  .dw str_convert_to_ui8
+  .dw str_ref_convert_to_ui8
+  .dw single_convert_to_ui8
+  .dw xfloat_convert_to_ui8
+_:
+
+ui8_convert_to_ui8:
+ui16_convert_to_ui8:
+ui32_convert_to_ui8:
+fixed88_convert_to_ui8:
+fixed1616_convert_to_ui8:
+var_convert_to_ui8:
+true_convert_to_ui8:
+false_convert_to_ui8:
+tstr_ref_convert_to_ui8:
+raw_convert_to_ui8:
+str_convert_to_ui8:
+str_ref_convert_to_ui8:
+single_convert_to_ui8:
+xfloat_convert_to_ui8:
+  jp err_syntax

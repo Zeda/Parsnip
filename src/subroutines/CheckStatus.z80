@@ -1,0 +1,19 @@
+;===============================================================
+CheckStatus:
+;===============================================================
+;Speed:  89 cycles
+;Size:   13 bytes
+;Outputs:
+;     z is set if ON is being pressed
+;     c is set if 15MHz mode is used
+;===============================================================
+  push bc
+  push af
+  in a,(4)
+  and 8
+  in a,(20)
+  rra
+  pop bc
+  ld a,b
+  pop bc
+  ret

@@ -1,0 +1,68 @@
+eval_div_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw div_ui8
+  .dw div_ui16
+  .dw div_ui32
+  .dw div_fixed88
+  .dw div_fixed1616
+  .dw div_var
+  .dw div_true
+  .dw div_false
+  .dw div_tstr_ref
+  .dw div_raw
+  .dw div_str
+  .dw div_str_ref
+  .dw div_single
+  .dw div_xfloat
+_:
+
+
+div_ui8:
+div_ui16:
+div_ui32:
+div_fixed88:
+div_fixed1616:
+div_var:
+div_true:
+div_false:
+div_tstr_ref:
+div_raw:
+div_str:
+div_str_ref:
+div_single:
+  call pop2operand_ui16
+  ld b,h
+  ld c,l
+  call BC_Div_DE
+  ld a,h
+  or l
+  jp z,pushoperand_ui16_BC
+;otherwise, BC is the integer part, HL/-DE is the fractional part
+;get 16 more bits of the division
+  push bc
+  call div16_continue
+  xor a
+  add hl,hl
+  jr c,$+3
+  add hl,de
+  ld l,a \ adc a,c \ ld c,a
+  ld a,l \ adc a,b \ ld b,a
+  pop de
+  jr nc,$+3
+  inc de
+  jp pushoperand_fixed1616
+  jp pushoperand_ui16_BC
+
+div_xfloat:
+  call pop2operand_xfloat
+  call xdiv_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10
+;bytes and push on 11. Or combos that include type_var can be a pain.
+  ld hl,10
+  add hl,bc
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret

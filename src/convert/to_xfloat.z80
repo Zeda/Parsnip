@@ -1,0 +1,141 @@
+to_xfloat_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_xfloat
+  .dw ui16_convert_to_xfloat
+  .dw ui32_convert_to_xfloat
+  .dw fixed88_convert_to_xfloat
+  .dw fixed1616_convert_to_xfloat
+  .dw var_convert_to_xfloat
+  .dw true_convert_to_xfloat
+  .dw false_convert_to_xfloat
+  .dw tstr_ref_convert_to_xfloat
+  .dw raw_convert_to_xfloat
+  .dw str_convert_to_xfloat
+  .dw str_ref_convert_to_xfloat
+  .dw single_convert_to_xfloat
+  .dw xfloat_convert_to_xfloat
+_:
+
+ui8_convert_to_xfloat:
+  ld bc,$4007
+  ld a,(de)
+  or a
+  jp z,false_convert_to_xfloat
+  jr ui8_to_xfloat_begin
+_:
+  dec c
+  add a,a
+ui8_to_xfloat_begin:
+  jp p,-_
+  ;BC is the exponent
+  ;A is the top byte
+  ld (OP1+8),bc
+  ld hl,OP1+7
+  ld (hl),a
+  ld bc,$700
+_:
+  dec hl
+  ld (hl),c
+  djnz -_
+  ret
+
+fixed88_convert_to_xfloat:
+  ld bc,$4007
+  jr +_
+ui16_convert_to_xfloat:
+  ld bc,$400F
+_:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+  ld a,h
+  or l
+  jr z,false_convert_to_xfloat
+  ld a,h
+  jr ui16_to_xfloat_begin
+_:
+  dec bc
+  add hl,hl
+ui16_to_xfloat_begin:
+  or h
+  jp p,-_
+  ;BC is the exponent
+  ;HL is the top bytes
+  ld (OP1+8),bc
+  ld (OP1+6),hl
+  ld hl,OP1+6
+  ld bc,$600
+_:
+  dec hl
+  ld (hl),c
+  djnz -_
+  ret
+
+fixed1616_convert_to_xfloat:
+  ld bc,$400F
+  jr +_
+ui32_convert_to_xfloat:
+  ld bc,$401F
+_:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ex de,hl
+;DEHL is the uint32
+  or h
+  or l
+  or d
+  jr z,false_convert_to_xfloat
+  ld a,d
+  jr ui32_to_xfloat_begin
+_:
+  dec bc
+  add hl,hl
+  rl e
+  rl d
+ui32_to_xfloat_begin:
+  or d
+  jp p,-_
+  ;BC is the exponent
+  ;DEHL are the top bytes
+  ld (OP1+8),bc
+  ld (OP1+6),de
+  ld (OP1+4),hl
+
+  ld hl,0
+  ld (OP1+2),hl
+  ld (OP1),hl
+  ld hl,OP1
+
+  ret
+
+
+var_convert_to_xfloat:
+  jp err_bad_type
+
+true_convert_to_xfloat:
+  ld a,X_CONST_1
+  jp xconst_to_xOP1_p0
+
+false_convert_to_xfloat:
+  ld a,X_CONST_0
+  jp xconst_to_xOP1_p0
+
+tstr_ref_convert_to_xfloat:
+raw_convert_to_xfloat:
+str_convert_to_xfloat:
+str_ref_convert_to_xfloat:
+single_convert_to_xfloat:
+  jp err_bad_type
+
+xfloat_convert_to_xfloat:
+  ex de,hl
+  ret

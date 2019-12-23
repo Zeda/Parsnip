@@ -1,0 +1,33 @@
+to_fixed1616_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_fixed1616
+  .dw ui16_convert_to_fixed1616
+  .dw ui32_convert_to_fixed1616
+  .dw fixed88_convert_to_fixed1616
+  .dw fixed1616_convert_to_fixed1616
+  .dw var_convert_to_fixed1616
+  .dw true_convert_to_fixed1616
+  .dw false_convert_to_fixed1616
+  .dw tstr_ref_convert_to_fixed1616
+  .dw raw_convert_to_fixed1616
+  .dw str_convert_to_fixed1616
+  .dw str_ref_convert_to_fixed1616
+  .dw single_convert_to_fixed1616
+  .dw xfloat_convert_to_fixed1616
+_:
+
+ui8_convert_to_fixed1616:
+ui16_convert_to_fixed1616:
+ui32_convert_to_fixed1616:
+fixed88_convert_to_fixed1616:
+fixed1616_convert_to_fixed1616:
+var_convert_to_fixed1616:
+true_convert_to_fixed1616:
+false_convert_to_fixed1616:
+tstr_ref_convert_to_fixed1616:
+raw_convert_to_fixed1616:
+str_convert_to_fixed1616:
+str_ref_convert_to_fixed1616:
+single_convert_to_fixed1616:
+xfloat_convert_to_fixed1616:
+  jp err_syntax

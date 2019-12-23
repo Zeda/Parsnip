@@ -1,0 +1,54 @@
+eval_mul_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw mul_ui8
+  .dw mul_ui16
+  .dw mul_ui32
+  .dw mul_fixed88
+  .dw mul_fixed1616
+  .dw mul_var
+  .dw mul_true
+  .dw mul_false
+  .dw mul_tstr_ref
+  .dw mul_raw
+  .dw mul_str
+  .dw mul_str_ref
+  .dw mul_single
+  .dw mul_xfloat
+_:
+
+
+mul_ui8:
+mul_ui16:
+mul_ui32:
+mul_fixed88:
+mul_fixed1616:
+mul_var:
+mul_true:
+mul_false:
+mul_tstr_ref:
+mul_raw:
+mul_str:
+mul_str_ref:
+mul_single:
+  call pop2operand_ui16
+  ld b,h
+  ld c,l
+  call DE_Times_BC
+  ld a,d
+  or e
+  jp nz,pushoperand_ui32_DEHL
+  jp pushoperand_ui16_HL
+
+mul_xfloat:
+  call pop2operand_xfloat
+  call xmul_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10
+;bytes and push on 11. Or combos that include type_var can be a pain.
+  ld hl,10
+  add hl,bc
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret

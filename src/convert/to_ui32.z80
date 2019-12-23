@@ -1,0 +1,33 @@
+to_ui32_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_ui32
+  .dw ui16_convert_to_ui32
+  .dw ui32_convert_to_ui32
+  .dw fixed88_convert_to_ui32
+  .dw fixed1616_convert_to_ui32
+  .dw var_convert_to_ui32
+  .dw true_convert_to_ui32
+  .dw false_convert_to_ui32
+  .dw tstr_ref_convert_to_ui32
+  .dw raw_convert_to_ui32
+  .dw str_convert_to_ui32
+  .dw str_ref_convert_to_ui32
+  .dw single_convert_to_ui32
+  .dw xfloat_convert_to_ui32
+_:
+
+ui8_convert_to_ui32:
+ui16_convert_to_ui32:
+ui32_convert_to_ui32:
+fixed88_convert_to_ui32:
+fixed1616_convert_to_ui32:
+var_convert_to_ui32:
+true_convert_to_ui32:
+false_convert_to_ui32:
+tstr_ref_convert_to_ui32:
+raw_convert_to_ui32:
+str_convert_to_ui32:
+str_ref_convert_to_ui32:
+single_convert_to_ui32:
+xfloat_convert_to_ui32:
+  jp err_syntax

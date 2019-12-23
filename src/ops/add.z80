@@ -1,0 +1,104 @@
+eval_add_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw add_ui8
+  .dw add_ui16
+  .dw add_ui32
+  .dw add_fixed88
+  .dw add_fixed1616
+  .dw add_var
+  .dw add_true
+  .dw add_false
+  .dw add_tstr_ref
+  .dw add_raw
+  .dw add_str
+  .dw add_str_ref
+  .dw add_single
+  .dw add_xfloat
+_:
+
+
+add_ui8:
+add_ui16:
+add_ui32:
+add_fixed88:
+add_fixed1616:
+add_var:
+add_true:
+add_false:
+  call pop2operand_ui16
+  add hl,de
+  jp pushoperand_ui16_HL
+
+add_tstr_ref:
+add_str:
+add_str_ref:
+  call popoperand_str
+  push hl   ;pointer
+  call stringlength
+  push bc   ;size
+  call popoperand_str
+  push hl
+  call stringlength
+  pop hl
+
+  pop de
+  push de
+
+  push hl
+  push bc
+;stack has {str2ptr, str2size, str1ptr, str1size}
+  ;need to allocate DE+BC+2 bytes
+  ex de,hl
+  add hl,bc
+  ld b,h
+  ld c,l
+  push bc
+  inc bc
+  inc bc
+  call alloc
+  ;HL points to where to write the data
+  ld (tempword1),hl
+  ld d,h
+  ld e,l
+  ld (hl),type_str
+  inc hl
+  pop bc
+  dec bc
+  ld (tempword2),bc
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  ex de,hl
+  ;DE points to where to write
+  ;HL points to the start of the data
+  pop bc
+  pop hl
+  ldir
+  dec de
+  pop bc
+  pop hl
+  ldir
+
+  ld de,(tempword1)
+  ld bc,(tempword2)
+  ld a,type_str_ref
+  jp pushoperand_ref
+
+add_single:
+add_raw:
+  jp err_syntax
+
+add_xfloat:
+  call pop2operand_xfloat
+  call xadd_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10
+;bytes and push on 11. Or combos that include type_var can be a pain.
+  ld hl,10
+  add hl,bc
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret

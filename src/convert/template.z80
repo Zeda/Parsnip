@@ -1,0 +1,33 @@
+to_xfloat_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_xfloat
+  .dw ui16_convert_to_xfloat
+  .dw ui32_convert_to_xfloat
+  .dw fixed88_convert_to_xfloat
+  .dw fixed1616_convert_to_xfloat
+  .dw var_convert_to_xfloat
+  .dw true_convert_to_xfloat
+  .dw false_convert_to_xfloat
+  .dw tstr_ref_convert_to_xfloat
+  .dw raw_convert_to_xfloat
+  .dw str_convert_to_xfloat
+  .dw str_ref_convert_to_xfloat
+  .dw single_convert_to_xfloat
+  .dw xfloat_convert_to_xfloat
+_:
+
+ui8_convert_to_xfloat:
+ui16_convert_to_xfloat:
+ui32_convert_to_xfloat:
+fixed88_convert_to_xfloat:
+fixed1616_convert_to_xfloat:
+var_convert_to_xfloat:
+true_convert_to_xfloat:
+false_convert_to_xfloat:
+tstr_ref_convert_to_xfloat:
+raw_convert_to_xfloat:
+str_convert_to_xfloat:
+str_ref_convert_to_xfloat:
+single_convert_to_xfloat:
+xfloat_convert_to_xfloat:
+  jp err_syntax

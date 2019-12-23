@@ -1,0 +1,25 @@
+div16_continue:
+;Input:
+;   HL is the remainder
+;   -DE is the denominator
+;Output:
+;   BC is the next 16 bits
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  ld b,a
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  add hl,hl \ add hl,de \ jr c,$+4 \ sbc hl,de \ rla
+  ld c,a
+  ret

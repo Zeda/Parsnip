@@ -1,0 +1,46 @@
+.org $4000
+#define scrap 8000h
+
+#include "xconst.z80"
+#include "float.inc"
+#include "single.inc"
+#include "strtox.z80"
+#include "xtostr.z80"
+#include "xln.z80"
+
+
+#include "absSingle.z80"
+#include "negSingle.z80"
+#include "cmpSingle.z80"
+
+#include "randSingle.z80"
+
+#include "acosSingle.z80"
+#include "asinSingle.z80"
+#include "atanSingle.z80"
+#include "acoshSingle.z80"
+#include "asinhSingle.z80"
+#include "atanhSingle.z80"
+#include "coshSingle.z80"
+#include "sinhSingle.z80"
+#include "tanhSingle.z80"
+#include "tanSingle.z80"
+
+
+#include "powSingle.z80"
+#include "pow10Single.z80"
+#include "logSingle.z80"
+#include "lgSingle.z80"
+#include "log10Single.z80"
+
+#include "single2str.z80"
+#include "str2single.z80"
+#include "singleTo_int16.z80"
+
+
+xconst_to_xOP1:
+  call xconst
+  ld de,xOP1
+  jp mov10
+
+.echo "Page 1: ",$8000-$," bytes remaining"

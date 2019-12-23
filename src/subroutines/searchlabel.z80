@@ -1,0 +1,96 @@
+searchlabel:
+;Inputs:
+;   HL points to where to begin the search
+;   DE points to the input string
+;   BC is hpw many bytes to search
+;Outputs:
+;   returns z if the match was found
+;     HL points to the match
+;
+;WARNING: This will incorrectly find instances where a label is in a string!
+;We should fix this to only allowing labels to be on their own line, as in
+;TI-BASIC.
+;
+;WARNING: This counts $3E and $3F as colon and newline even if they are part of
+;a multi-byte token.
+  ld a,$D6      ;lbl token
+  cpir
+  ret nz
+
+;Make sure that the token preceding was a colon or newline
+  dec hl
+  dec hl
+  ld a,(hl)
+  sub $3E     ; colon
+  and $FE
+  ret nz
+  inc hl
+  inc hl
+
+;now compare the strings
+  push de
+  call +_
+  pop de
+  jr nz,searchlabel
+  ret
+
+
+searchlabel_sub:
+  inc de
+  ;make sure that A is not either a colon or newline
+  sub $3E     ; colon
+  and $FE
+  ret z
+
+_:
+; Found match if:
+;   DE points to colon or newline
+;       AND
+;   HL points to colon or newline
+;
+;OR
+;
+;   DE points to the eof
+;       AND
+;   HL points to colon or newline
+;
+;OR
+;
+;   HL points to the eof
+;       AND
+;   DE points to colon or newline
+  ld a,(de)
+  cpi
+  jp po,searchlabel_case2
+  jr z,searchlabel_sub
+searchlabel_case0:
+;First, check if DE points to the EOF
+  push hl
+  ld hl,(progEnd)
+  or a
+  sbc hl,de
+  pop hl
+  jr z,searchlabel_case1
+  jr c,searchlabel_case1
+; Found match if:
+;   DE points to colon or newline
+;       AND
+;   HL points to colon or newline
+;
+  call searchlabel_case2
+  ret nz
+searchlabel_case1:
+; Found match if:
+;   HL points to colon or newline
+  dec hl
+  ld a,(hl)
+  inc hl
+  .db $FE     ;start of `cp *` instruction, eats the `ld a,(de)`
+searchlabel_case2:
+; Found match if:
+;   DE points to colon or newline
+  ld a,(de)
+  sub $3E     ; colon
+  ret z
+  dec a       ;z if newline
+  ret

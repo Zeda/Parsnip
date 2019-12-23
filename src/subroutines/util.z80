@@ -1,0 +1,64 @@
+; Routines:
+;   seek_EOS
+;   is2byte
+
+seek_EOS:
+;Inputs:
+;   HL points to the source string data (after the open quote)
+;Output:
+;   HL points to the byte after the end-quote
+;   BC is the size of the string
+
+  ld bc,0
+_:
+  ld a,$2A
+  cpir
+  ;verify that the byte before it was not that of a 2-byte token
+  dec hl
+  dec hl
+  ld a,(hl)
+  inc hl
+  inc hl
+  call is2byte
+  jr z,-_
+
+;return -BC-1
+;basically complement BC
+  ld a,b \ cpl \ ld b,a
+  ld a,c \ cpl \ ld c,a
+  ret
+
+stringlength:
+;Returns BC as the length of the null-terminated string (including null byte).
+  xor a
+  ld c,a
+  ld b,a
+  cpir
+  sub c
+  ld c,a
+  sbc a,a
+  sub b
+  ld b,a
+  ret
+
+is2byte:
+  cp $BB
+  ret z
+  cp $EF
+  ret z
+  cp $AA
+  ret z
+  cp $5C
+  ret z
+  cp $5D
+  ret z
+  cp $5E
+  ret z
+  cp $60
+  ret z
+  cp $61
+  ret z
+  cp $62
+  ret z
+  cp $63
+  ret

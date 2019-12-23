@@ -1,0 +1,23 @@
+- clean up the main menu
+- move the exec and eval routines to their own files
+- add conversions between numeric types
+  - add flags to indicate downgrade/upgrade
+  - downgrades happen when evaluating functions
+  - upgrades happen during computations like with binops
+    ui8
+    ui16
+    ui32
+    i8
+    i16
+    i32
+    fsingle
+    bool true
+    bool false
+    ui64    ;maybe, not sure yet
+    i64    ;maybe, not sure yet
+    xfloat ;maybe, undecided
+
+- document interface for creating functions
+- add in a way for custom structs !
+- add in list
+- add more descriptive errors

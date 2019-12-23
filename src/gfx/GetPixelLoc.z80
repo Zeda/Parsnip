@@ -1,0 +1,38 @@
+GetPixelLoc:
+;Input:
+;     b is X
+;     c is y
+;Output:
+;     HL points to byte
+;     A is the mask
+;     nc if not computed, c if computed
+;Speed: 192+17{1,2,3,4,5,6,7,8}
+;Avg: 268.5cc
+  ld a,c
+  cp 64
+  ret nc
+  ld a,b
+  cp 96
+  ret nc
+  ld l,c
+  ld h,0
+  ld b,h
+  add hl,hl
+  add hl,bc
+  add hl,hl
+  add hl,hl
+  ld c,a
+  srl c
+  srl c
+  srl c
+  add hl,bc
+  ld bc,(gbuf_temp)
+  add hl,bc
+  and 7
+  ld b,a
+  inc b
+  ld a,1
+  rrca
+  djnz $-1
+  scf
+  ret

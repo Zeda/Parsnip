@@ -1,0 +1,286 @@
+PutSS:
+  ld d,a
+  jr GPutS+2
+GPutSS:
+  ld (textRow),bc
+;===============================================================
+GPutS:
+;===============================================================
+;Inputs:
+;     HL points to a zero terminated string to display
+;     (textRow) is the pixel row to draw at
+;     (textCol) is the text column to draw at (0 to 23)
+;Outputs:
+;     HL points to the ending byte
+;     BC is the size of the string
+;     A is 0
+;     z flag is set
+;     c flag reset
+;Destroys:
+;     DE
+;===============================================================
+  ld d,0    ;gotta keep this here for PutSS
+  ld bc,0
+_:
+  ld a,(hl)
+  cp d
+  ret z
+  push de
+  inc bc
+  push bc
+  inc hl
+  push hl
+  call PutSC
+  pop hl
+  pop bc
+  pop de
+  jr -_
+;===============================================================
+PutSC:
+;===============================================================
+;Inputs:
+;     a is the char to draw
+;     (textRow) is the pixel row to draw at
+;     (textCol) is the text column to draw at (0 to 23)
+;===============================================================
+  ld b,a
+  ld a,(GrayRotate)
+  and 18h
+  jp z,+_
+  cp 8
+  jp z,VPutC
+  cp 10h
+  jp z,VPutSC
+  jp OmniCalcFont
+_:
+  push bc
+  ld bc,(textRow)
+  ld a,b
+  cp 24
+  ld a,c
+  jr c,+_
+  ld b,0
+  add a,6
+_:
+  cp 3Bh
+  jr c,+_
+  sub 3Ch
+  jr nc,+_
+  add a,6
+_:
+  ld c,a
+  inc b
+  ld (textRow),bc
+  dec b
+  ld hl,(FontPointer)
+  pop af
+;===============================================================
+PutFS:
+;===============================================================
+  push bc
+  push hl
+  ld b,0
+  ld c,a
+  ld h,b
+  ld l,c
+  add hl,hl
+  add hl,bc
+  pop de
+  add hl,de
+  pop bc
+  push hl
+  ld a,b
+  ld b,0
+  ld h,b
+  ld l,c
+  add hl,hl
+  add hl,bc
+  add hl,hl
+  add hl,hl
+  rra
+  push af
+  ld c,a
+  add hl,bc
+  ld bc,(BufPtr)
+  add hl,bc
+  ld bc,060Ch
+;==========================================
+;Added in for slow text
+  bit SlowTextFlag,(iy+InternalFlag)
+  jr z,SkipSlow
+  push bc
+  push hl
+  call GraphToLCD
+  pop hl
+  pop bc
+  ld a,(TextPauseTime)
+  ei
+_:
+  halt
+  dec a
+  jr nz,-_
+  di
+SkipSlow:
+;==========================================
+  pop af
+  pop de
+  jr c,PutRight
+;===============================================================
+PutLeft:
+;===============================================================
+  ld a,(hl)
+  and 15
+  ld (hl),a
+  ld a,(de)
+  bit InvertTextFlag,(iy+UserFlags)
+  jr z,+_
+  cpl
+_:
+  bit 0,b
+  jr z,+_
+  rlca \ rlca \ rlca \ rlca
+  inc de
+_:
+  and $F0
+  or (hl)
+  ld (hl),a
+  ld a,b
+  ld b,0
+  add hl,bc
+  ld b,a
+  djnz PutLeft
+  ret
+;===============================================================
+PutRight:
+;===============================================================
+  ld a,(hl)
+  and $F0
+  ld (hl),a
+  ld a,(de)
+  bit InvertTextFlag,(iy+UserFlags)
+  jr z,+_
+  cpl
+_:
+  bit 0,b
+  jr nz,+_
+  rlca \ rlca \ rlca \ rlca
+  dec de
+_:
+  inc de
+  and 15
+  or (hl)
+  ld (hl),a
+  ld a,b
+  ld b,0
+  add hl,bc
+  ld b,a
+  djnz PutRight
+  ret
+OmniCalcFont:
+;Inputs:
+;    B is the char to draw
+  ld l,b
+  ld h,0
+  ld b,h
+  ld c,l
+  add hl,hl
+  add hl,bc
+  add hl,hl
+  add hl,bc
+  ld bc,(FontPointer)
+  add hl,bc
+  ld de,OP1
+  ld b,7
+_:
+  ld a,(hl)
+  rlca
+  rlca
+  rlca
+  ld (de),a
+  inc e
+  inc hl
+  djnz -_
+  ld de,OP1
+  ld hl,0706h
+  jr VputSCStepIn
+VPutSC:
+;Inputs:
+;    B is the char to draw
+  ld a,b
+;  cp 20h     ;no idea why this is here?
+  ld hl,(FontPointer)
+  ld c,b
+  ld b,0
+  add hl,bc
+  add hl,bc
+  add hl,bc ;*3
+  ld de,OP1
+  ld b,3  ;3*2 Nibbles
+_:
+  ld a,(hl)
+  and $F0
+  ld (de),a
+  inc e
+  ld a,(hl)
+  rrca \ rrca
+  rrca \ rrca
+  and $F0
+  ld (de),a
+  inc e
+  inc hl
+  djnz -_
+  ld de,OP1
+  ld hl,0604h
+  jr VputSCStepIn
+VPutC:
+;Inputs:
+;    B is the char to draw
+  ld hl,(FontPointer)
+  ld de,255
+_:
+  inc e
+  add hl,de
+  ld a,(hl)
+  ;a is w,h in nibbles
+  and 15 ;height
+  inc a  ;1..16 is enough
+  ld e,a
+  djnz -_
+  ld d,e  ;height->d
+  ld e,(hl) ;now width
+  srl e \ srl e
+  srl e \ srl e ;->low nibble, width 0..9
+  inc hl
+  ex de,hl
+VputSCStepIn:
+  push hl
+  ld bc,(TextRow)
+  ld a,b \ add a,l
+  cp 97
+  jr c,+_
+  ld a,c
+  add a,h \ ld c,a
+  ld a,l \ ld b,0
+_:
+  ld l,a
+  ld a,c
+  cp 58
+  jr c,+_
+  xor a
+  ld c,a
+_:
+  ld h,l
+  ld l,a
+  ld (TextRow),hl
+;  ld hl,(BufPtr)
+;  ld (gbuf_temp),hl
+  pop hl
+  ld a,7
+  add a,l
+  and %11111000
+  rra
+  rra
+  rra
+  ld l,a
+  ld a,(OutputLogic)
+  jp sprite

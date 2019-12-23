@@ -1,0 +1,240 @@
+fastline:
+;B is x0
+;C is y0
+;D is x1
+;E is y1
+;A is the method
+;HL is where to draw
+;Destroys:
+;  All (including shadow registers)
+;  3 bytes at TempWord1
+
+;Disable interrupts so that we can use shadow registers
+  call diRestore
+
+;Save the buf ptr
+  ld (gbuf_temp),hl
+
+;Use SMC to change the draw method
+  .db 21h ;start of ld hl,*
+    cpl
+    and (hl)
+  dec a
+  jr nz,+_
+  .db 21h ;start of ld hl,*
+    nop
+    or (hl)
+_:
+  dec a
+  jr nz,+_
+  .db 21h ;start of ld hl,*
+    nop
+    xor (hl)
+_:
+  ld (pix_method),hl
+
+;We'll do some basic checks
+;If B and D are both negative, then exit!
+  ld a,b
+  and d
+  ret m
+
+;If C and E are both negative, then exit!
+  ld a,c
+  and e
+  ret m
+
+;If B and D are both less than 128, but greater than or equal to 96, exit
+  ld a,b
+  or d
+  jp m,+_
+  ld a,b
+  cp 96
+  jr c,+_
+  ld a,d
+  cp 96
+  ret nc
+_:
+
+;If C and E are both less than 128, but greater than or equal to 64, exit
+  ld a,c
+  or e
+  jp m,+_
+  ;Both are positive
+  ;The only way for both to be >=64 is for bit 6 to be set in both
+  ld a,c
+  and b
+  add a,a
+  ret m
+_:
+
+;Now put left-most point in (B,C) and right-most in (D,E)
+;I could have -127 to 127
+  ld a,b
+  xor 80h
+  ld h,a
+  ld a,d
+  xor 80h
+  sub h
+  ld h,a    ;Get width in H
+  jr nc,+_
+  neg
+  ld h,a
+  ld b,d
+  ld a,e
+  ld e,c
+  ld c,a
+_:
+  ld d,h    ;Get width in D
+  inc d
+
+;Set up the pixel pointers and whatnot
+  push bc
+  exx
+  pop bc
+  call GetPixelLoc_NoBound
+  ld d,a
+  ld bc,12
+  exx
+
+;Get height in L
+  ld a,c
+  xor 80h
+  ld l,a
+  ld a,e
+  xor 80h
+  sub l
+  jp nc,draw_line_down
+  exx
+  ld bc,-12
+  exx
+  neg
+  ld l,a
+draw_line_up:
+  ld e,a
+  inc e
+  ld a,h
+  or a
+  jr nz,draw_line_up_nonvert
+  ;vertical line
+  ld a,e
+_:
+  call plotpix_precomp
+  dec c
+  exx
+  add hl,bc
+  exx
+  dec a
+  jr nz,-_
+  ret
+draw_line_up_nonvert:
+  rra   ;set the accumulator
+draw_line_up_loop:
+  call plotpix_precomp
+  dec d
+  ret z
+  inc b
+  exx
+  rrc d
+  jr nc,+_
+  inc hl
+_:
+  exx
+  sub a,l
+  jr nc,draw_line_up_loop
+  exx
+  add hl,bc
+  exx
+
+  add a,h
+  dec c
+  dec e
+  ret z
+  jr c,draw_line_up_loop
+_:
+  call plotpix_precomp
+
+  exx
+  add hl,bc
+  exx
+
+  add a,h
+  dec c
+  dec e
+  ret z
+  jr nc,-_
+  jp draw_line_up_loop
+
+
+draw_line_down:
+  ld l,a
+  ld e,a
+  inc e
+  ld a,h
+  or a
+  jr nz,draw_line_down_nonvert
+  ;vertical line
+  ld a,e
+_:
+  call plotpix_precomp
+  inc c
+  exx
+  add hl,bc
+  exx
+  dec a
+  jr nz,-_
+  ret
+draw_line_down_nonvert:
+  rra   ;set the accumulator
+draw_line_down_loop:
+  call plotpix_precomp
+  dec d
+  ret z
+  inc b
+  exx
+  rrc d
+  jr nc,+_
+  inc hl
+_:
+  exx
+  sub a,l
+  jr nc,draw_line_down_loop
+
+  exx
+  add hl,bc
+  exx
+
+  add a,h
+  inc c
+  dec e
+  ret z
+  jr c,draw_line_down_loop
+_:
+  call plotpix_precomp
+
+  exx
+  add hl,bc
+  exx
+
+  add a,h
+  inc c
+  dec e
+  ret z
+  jr nc,-_
+  jp draw_line_down_loop
+
+plotpix_precomp:
+  ex af,af'
+  ld a,c
+  cp 64
+  jr nc,+_
+  ld a,b
+  cp 96
+  jr nc,+_
+  exx
+  ld a,d
+  call pix_plot
+  exx
+_:
+  ex af,af'
+  ret

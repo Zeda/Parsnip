@@ -1,0 +1,2401 @@
+;Parsnip
+;================:
+;\\     /\       :
+; \\   //\\      :
+;  \\ //  \\     :
+;   \\/----\\    :
+;   //\----//\   :
+;  // \\  // \\  :
+; //   \\//   \\ :
+;//     \/     \\:
+;================:
+;Project.........Parsnip
+;Program.........Parsnip
+;Author..........Zeda Thomas (ThunderBolt)
+;E-mail..........xedaelnara@gmail.com
+;Size............
+;Language........English
+;Programming.....Assembly
+;Version.........v0.50            ;I rarely update this info
+;Last Update.....23 December 2018     ;This is not accurate, probably
+
+#define bcall(x) rst 28h \ .dw x
+#define LCDDelay()   in a,(16) \ rla \ jr c,$-3
+#include "parsnip.inc"
+#define Coord(y,x)     .db 01,y,x
+#define SHELL_BROKEN
+#define speed
+;for x,y,$ffff never stops
+#define K_DELAY_DEFAULT 13
+#define K_DELAY_ACCEL 3
+#define ALIGN_COMMAND_TABLE      ;Comment this to potentially save some bytes, uncomment to save some clock cycles
+;#define include_LoadTSA
+#define STACK_SAFE               ;Makes the stack routines verify that they aren't overflowing
+
+#define char_TI_TOK
+fmtDigits = 97B0h
+#define EXTERNAL_FORMAT_LEN    ;Uses an external reference to get the format length
+#define EXTERNAL_FORMAT_LEN_LOC fmtDigits    ;Use for TI-OS
+
+
+.org $4000
+.db $80,$0F, 0,0,0,0
+.db $80,$12, $01,$04    ;signing key ID
+.db $80,$47, "Parsnip"  ;change the $47 according to name len.
+.db $80,$81, 2          ;num pages
+.db $80,$90             ;no splash
+.db $03,$22,$09,$00     ;date stamp
+.db $02,$00             ;date stamp signature
+.db $80,$70             ;final field
+
+     jp main
+jumptable:
+#include "jmptable.z80"
+SelectedProg:
+  bcall(_OP5ToOP1)
+
+SelectedProgOP1:
+  ld hl,gbuf
+  ld (BufPtr),hl
+  bcall(_ChkFindSym)
+  ret c
+  ld hl,cmdShadow+2
+  ld a,$BB
+  cp (hl)
+  jr nz,+_
+  inc l
+  ld a,$6D
+  cp (hl)
+  jp z,EndHook_prepush
+_:
+  ld a,(TempWord3)
+  or a
+  jp z,ExecOP1
+;Here we need to move the code to RAM.
+;  We will perform some minor pre-compiling
+;  Currently it is just:
+;     Convert numbers to raw binary
+#include "precompile.z80"
+ExecOP1:
+  ld hl,OP1
+  ld de,basic_prog
+  call mov9_p0
+  bcall(_ChkFindSym)
+  ld a,b
+  ret c
+  or a
+  ret nz
+  ex de,hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+parse_via_ptr:
+;HL points to code
+;BC is the size
+  ld (parsePtr),hl
+  ld (progStart),hl
+  add hl,bc
+  ld (progEnd),hl
+  ld h,a \ ld l,a
+  ld (parseError),hl
+grazh:
+  call SetUpData
+  call progmeta
+  di
+  ld hl,BreakProgram
+  push hl
+ParserNext:
+  bit OnBlockFlag,(iy+UserFlags)
+  call z,CheckStatus
+  call z,ONErr
+  ld de,ParserNext
+  push de
+ParseArg:
+  ld de,(parsePtr)
+  ld hl,(progEnd)
+  scf
+  sbc hl,de
+  jr c,end_of_program
+  ex de,hl
+
+ParseArg2:
+  ld a,(hl)
+  inc hl
+  ld (parsePtr),hl
+  ex de,hl
+#ifdef ALIGN_COMMAND_TABLE
+  ld h,CommandJumpTable>>8
+  add a,a
+  ld l,a
+  jr nc,+_
+  inc h
+_:
+  rra
+#else
+  ld c,a
+  ld hl,CommandJumpTable
+  ld b,0
+  add hl,bc
+  add hl,bc
+#endif
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  push bc
+  ex de,hl
+  ret
+end_of_program:
+  call exec_newline
+  jp StopToken
+
+_:
+  dec a
+  call opstackprecedence
+
+exec_newline:
+;need to pop and evaluate the stack
+  ld hl,(opstack_ptr)
+  xor a
+  cp (hl)
+  jr nz,-_
+
+_:
+;Either 0 or 1 operands should be left on the stack!
+;Return if there are no operands left
+  call isoperandstack_empty
+  ret z
+
+;There is an operand, so pop it into Ans
+  call popoperand_ui16
+  ld (Ans),de
+
+;Now if there are any more operands, throw an error
+  call isoperandstack_empty
+  ret z
+  jp err_too_many_args
+
+isoperandstack_empty:
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  sbc hl,de
+  ret
+
+
+exec_goto:
+;WARNING:
+;   This routine needs to verify that the stack and opstack don't have anything.
+  ld de,(progStart)
+;HL points to the label name
+;DE points to where to begin searching
+  push hl
+  ld hl,(progEnd)
+  or a
+  sbc hl,de
+  ld b,h
+  ld c,l
+  pop hl
+;HL points to the label name
+;DE points to where to begin searching
+;BC is the number of bytes to search
+  ex de,hl
+  call searchlabel
+  jp nz,err_label_not_found
+  ld (parsePtr),hl
+  ret
+
+exec_end:
+; First verify that we have a 0 on the opstack
+
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  or a
+  jp nz,err_syntax
+  inc hl
+  ld a,(hl)
+  cp $D2    ;Repeat token
+  jp nz,err_fatal
+  inc hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+
+  push hl   ;points to the top of the OP stack if done
+  ld hl,(parsePtr)
+  push hl
+  ld (parsePtr),de  ;points to the condition
+
+_:
+; Parse the condition
+  call parseArg
+  ld hl,(parsePtr)
+  ld a,(hl)
+  sub $3E
+  and $FE
+  jr nz,-_
+  inc hl
+  ld (parsePtr),hl
+;now make sure process th stuff on the opstack
+  ld a,254
+_:
+  call opstackprecedence
+  jr nc,-_
+
+  call popoperand_bool
+  pop de
+  pop hl
+  ret z
+  ld (opstack_ptr),hl
+  ld (parsePtr),de
+  ret
+
+exec_lbl:
+seek_EOL:
+  ld a,(hl)
+  inc hl
+  sub $3E     ; colon
+  and $FE
+  jr nz,exec_lbl
+  ld (parsePtr),hl
+  ret
+
+exec_repeat:
+; Need to push HL to the operator stack, this points to the expression
+; need to push the repeat token to the operator stack
+; need to push a 0 to the operator stack
+; skip to the end of the line
+; execute as normal
+
+  ex de,hl
+  ld hl,(opstack_ptr)
+  dec hl
+  ld (hl),d
+  dec hl
+  ld (hl),e
+  dec hl
+  ld (hl),$D2
+  dec hl
+  ld (hl),$00
+  ld (opstack_ptr),hl
+  ex de,hl
+  jr seek_EOL
+
+
+
+exec_comma:
+;evaluate up to the function on the stack
+  call +_
+;  ld hl,(opstack_ptr)
+  inc hl
+  ld (opstack_ptr),hl
+  ret
+_:
+
+exec_open_parens:
+exec_open_list:
+exec_if:
+exec_while:
+exec_for:
+exec_raw:
+exec_full:
+exec_clrdraw:
+exec_clrhome:
+exec_dispgraph:
+exec_putsprite:
+exec_pixelon:
+exec_pixeloff:
+exec_pixeltoggle:
+exec_pixeltest:
+exec_pause:
+exec_disp:
+exec_fix:
+exec_sto:
+exec_eq:
+exec_add:
+exec_sub:
+exec_mul:
+exec_div:
+exec_neg:
+
+;pop off ops and evaluate until op has lower precedence
+  push af
+  call getprecedence
+  jr z,opeval
+;here we have a function
+;So we need to push it to the operator stack
+;And then we need to push a null byte to the operand stack to indicate the end
+;of the arguments for the function (for when we need to evaluate the function).
+
+#ifdef STACK_SAFE
+  ld hl,(operandstack_top)
+  ld bc,(operandstack_ptr)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+  ld a,type_param_end
+  ld (bc),a
+  inc bc
+  ld (operandstack_ptr),bc
+#else
+  ld hl,(operandstack_ptr)
+  ld (hl),type_param_end
+  inc hl
+  ld (operandstack_ptr),hl
+#endif
+
+  ld hl,(opstack_ptr)
+  dec hl
+  ld (opstack_ptr),hl
+  pop af
+  ld (hl),a
+
+  ret
+
+
+exec_close_list:
+; There is a special case to take care of!
+; In the event of [stuff][index], we need to check if the next char to be parsed
+; is a '['. If so, need to store t_open_index instead of t_open_list
+;
+; As well, ']' can match '[' or t_open_index.
+; If it is an index:
+;     If the previous arg was a temp list, replace it with the sublist.
+;     Else replace the previous arg with an index variable, {t_index,t_var,.dw #, .dw upper, .dw lower}
+; Else need to allocate space for the list
+;     '[' is stored like a function, so find the start of the "function"
+;     arguments in the operandstack.
+;     Have to work backwards, also get the size of each element (needs to be
+;     evaluated)
+
+exec_close_index:
+eval_open_list:
+  jp err_syntax
+
+exec_close_parens:
+;need to evaluate up to the open parens or function
+_:
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  inc hl
+  call getprecedence
+  cp 254
+  call c,eval_func
+  jr c,-_
+  jr eval_func
+
+opeval:
+  call opstackprecedence
+  jr nc,opeval
+;push the operator
+  dec hl
+  dec hl
+  ld (opstack_ptr),hl
+  pop af
+  ld (hl),a
+  ret
+
+opstackprecedence:
+;Input:
+;   A is the precedence of the input operator.
+;   HL points to the first byte of the operator to compare to.
+;Output:
+;   nc if the input operator is of greater or equal precedence
+;   HL points to the next operator
+  push af
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  inc hl
+  call getprecedence
+  ld b,a
+  pop af
+  cp b
+  ret c
+eval_func:
+  push af
+
+  ld de,(opstack_ptr)
+  ld a,(de)
+  or a
+  scf
+  ret z
+  ld (opstack_ptr),hl
+
+  ld c,a
+#ifdef ALIGN_COMMAND_TABLE
+
+  ld h,evalLUT>>8
+  add a,a
+  ld l,a
+  jr nc,+_
+  inc h
+_:
+#else
+  ld hl,evalLUT
+  ld b,0
+  add hl,bc
+  add hl,bc
+#endif
+
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ld a,c
+  call call_hl
+  pop af
+  ret
+
+call_hl:
+  jp (hl)
+
+getprecedence:
+;A is the first byte of the operator
+;HL points to the next byte(s), if any
+  push hl
+  ld bc,(precedenceLUT_end-precedenceLUT)/2
+  ld hl,precedenceLUT
+_:
+  cpi
+  jr z,+_
+  inc hl
+  jp pe,-_
+_:
+  ;we have a match
+  ld a,(hl)
+  pop hl
+  ret
+precedenceLUT:
+  .db 0,255   ;highest precedence
+  .db $2B,-3  ;comma
+  .db $6A,30  ;=
+  .db $B0,41  ;(-)
+  .db $83,48  ;division
+  .db $82,49  ;multiplication
+  .db $71,50  ;subtraction
+  .db $70,51  ;addition
+  .db $04,-2  ;sto
+
+precedenceLUT_end:
+  .db -2
+
+type_size_LUT:
+  .db 1   ; 00 end of params
+  .db 2   ; 01 ui8
+  .db 3   ; 02 ui16
+  .db 5   ; 03 ui32
+  .db 3   ; 04 fixed88
+  .db 5   ; 05 fixed1616
+  .db 2   ; 06 var
+  .db 1   ; 07 true
+  .db 1   ; 08 false
+  .db 5   ; 09 tstr_ref
+  .db 0   ; 0A type_raw
+  .db 0   ; 0B type_str
+  .db 3   ; 0C type_str_ref
+  .db 5   ; 0D type_single
+  .db 11  ; 0E type_xfloat
+
+type_size_LUT_end:
+
+exec_num:
+  ex de,hl
+  dec de
+  call atoui16
+
+  ;make sure it isn't supposed to be a float!
+  jr z,+_
+  ex de,hl
+  ld (parsePtr),hl
+  jp pushoperand_ui16
+
+_:
+  ;If it got this far, we actually have a float or a fixed-point number
+  ;BC points to the number
+  ;Default to an xfloat
+  ld h,b
+  ld l,c
+  ld bc,OP1
+  call strtox_p0
+
+  ;save the parsePtr
+  ld hl,(strtox_ptr)
+  ld (parsePtr),hl
+
+; allocate space on the stack for an xfloat
+pushoperand_xfloat:
+;BC points to the float
+
+#ifdef STACK_SAFE
+  ld de,(operandstack_ptr)
+  ld hl,(operandstack_top)
+  or a
+  sbc hl,de
+  ;if HL<11, oh no!
+  ld a,l
+  sub 11
+  ld a,h
+  sbc a,0
+  jp c,err_operand_stack_overflow
+#endif
+  ld h,b
+  ld l,c
+  call mov10_p0
+  ex de,hl
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+eval_dispgraph:
+;might have 0 or 1 argument
+;assume 0 for now
+  call pop_end_of_params
+  jp GraphToLCD
+
+eval_clrdraw:
+;might have 0 or 1 argument
+;assume 0 for now
+  call pop_end_of_params
+  ld hl,gbuf
+  jp zeromem768
+
+eval_clrhome:
+  call pop_end_of_params
+  bcall(_HomeUp)
+  bcall(_ClrScrnFull)
+  ret
+
+eval_full:
+  call pop_end_of_params
+  in a,(2)
+  add a,a
+  sbc a,a
+  out (20h),a
+  ret
+
+eval_pause:
+;Pause might have 0 or 1 argument
+;assume 0 for now
+  call pop_end_of_params
+
+_:
+  bit OnBlockFlag,(iy+UserFlags)
+  call z,CheckStatus
+  call z,ONErr
+  call GetKeyDebounce
+  cp 9
+  jr nz,-_
+_:
+  bit OnBlockFlag,(iy+UserFlags)
+  call z,CheckStatus
+  call z,ONErr
+  call GetKeyDebounce
+  or a
+  jr nz,-_
+  ret
+
+eval_fix:
+  call popoperand_ui8
+  cp 20
+  jp nc,err_syntax
+  ld (fmtDigits),a
+  jp pop_end_of_params
+
+eval_disp:
+  call popoperand_str
+  bcall(_PutS)
+  bcall(_NewLine)
+  jp pop_end_of_params
+
+eval_open_parens:
+;make sure there is one operand
+  ld de,(operandstack_ptr)
+  ld hl,(operandstack_bottom)
+  or a
+  sbc hl,de
+  jp z,err_too_few_args
+  ld b,h
+  ld c,l
+;-BC is the number of bytes left in the operand stack
+
+  dec de
+  ld a,(de)
+  or a
+  jp z,err_too_few_args
+  ; cp type_size_LUT_end-type_size_LUT
+  ; jp nc,err_fatal      ;this means that there is a var allocated of a type not recognized
+
+  ld hl,type_size_LUT
+  add a,l
+  ld l,a
+  jr nc,+_
+  inc h
+_:
+
+;Make sure that there are enough bytes for a final operand
+  ld a,c
+  add a,(hl)
+  ld c,a
+  jr nc,+_
+  inc b
+_:
+  or b
+  jp z,err_too_few_args
+  ; inc b
+  ; dec b
+  ; jp z,err_fatal      ;this means that there was a misallocated var on the operand stack
+
+  xor a
+  ld b,a
+  ld c,(hl)
+  ex de,hl
+  sbc hl,bc
+
+;make sure that the operand is indeed a null byte
+  cp (hl)
+  jp nz,err_too_many_args
+
+;There is exactly one arg, so we'll shift BC bytes at HL+1, down to HL
+  ld d,h
+  ld e,l
+  inc hl
+  ldir
+  ld (operandstack_ptr),de
+  ret
+
+
+;Need to evaluate the function pop the 0x00 off the operator stack and evaluate
+
+eval_putsprite:
+  ; call countargs
+  ; cp 5
+  ld de,gbuf
+  ; call z,popoperand_buf
+  ld (gbuf_temp),de
+
+  call popoperand_ui8     ;method
+  push af
+
+  call popoperand_coord
+  push bc
+
+  call popoperand_sprite
+  ex de,hl
+  pop bc
+  pop af
+  ld hl,$0801
+  call sprite
+
+  jp pop_end_of_params
+
+eval_pixelon:
+  call eval_pixel
+  ret nc
+  or (hl)
+  ld (hl),a
+  jp pop_end_of_params
+
+eval_pixeloff:
+  call eval_pixel
+  ret nc
+  cpl
+  and (hl)
+  ld (hl),a
+  jp pop_end_of_params
+
+eval_pixeltoggle:
+  call eval_pixel
+  ret nc
+  xor (hl)
+  ld (hl),a
+  jp pop_end_of_params
+
+eval_pixeltest:
+  call eval_pixel
+  jr nc,+_
+  and (hl)
+  add a,255
+_:
+  push af
+  call pop_end_of_params
+  pop af
+  ld de,0
+  rl e
+  jp pushoperand_ui16
+
+
+eval_pixel:
+  call popoperand_coord
+  push bc
+  call is_end_of_args
+  ld de,gbuf
+  call nz,popoperand_buf
+  ld (gbuf_temp),de
+  pop bc
+#include "gfx/GetPixelLoc.z80"
+
+
+popoperand_bool:
+;pops a boolean into the zero flag, z means false, nz means true
+
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_ui16
+  jr z,+_
+
+  sub type_true
+  cp 1
+  jr z,popbool_end
+  jr c,popbool_end
+  jp err_bad_type
+
+_:
+  dec hl
+  ld a,(hl)
+  dec hl
+  or (hl)
+  add a,255
+  jr nc,popbool_end
+  xor a
+popbool_end:
+  ld (operandstack_ptr),hl
+  ret
+
+popoperand_sprite:
+  jp popoperand_raw
+
+popoperand_coord:
+;returns BC as the coord
+  call pop2operand_ui16
+  ld b,e
+  ld c,l
+  ret
+
+popoperand_buf:
+  jp popoperand_ui16
+
+eval_if:
+  call popoperand_bool
+  jp nz,pop_end_of_params
+  ; We need to check THEN, ELSE, END stuff
+  ld hl,(parsePtr)
+  call seek_EOL
+  jp pop_end_of_params
+
+eval_while:
+;need to
+  ; call popoperand_bool
+  ; jp z,seek_End
+
+  jp ErrBadToken
+
+eval_repeat:
+eval_for:
+eval_goto:
+eval_lbl:
+  jp ErrBadToken
+
+eval_raw:
+  call popoperand_str
+  push hl
+  call pop_end_of_params
+  pop de
+  ld hl,(operandstack_ptr)
+  push hl
+  call ConvHex
+  pop bc
+  or a
+  sbc hl,bc
+  push hl
+  add hl,bc
+  pop bc
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  ld (hl),type_raw
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+ConvHex:
+  ld bc,$0A30
+ConvHexLoop:
+;  HL points to where to convert
+;  DE is where to convert from
+;  BC is 0A30
+  ld a,(de)
+  inc de
+  sub c
+  ret c
+  cp b
+  jr c,+_
+  sub 17
+  ret c
+  cp 6
+  ret nc
+  add a,b
+_:
+  rld
+  ld a,(de)
+  inc de
+  sub c
+  ret c
+  cp b
+  jr c,+_
+  sub 17
+  ret c
+  cp 6
+  ret nc
+  add a,b
+_:
+  rld
+  inc hl
+  jp ConvHexLoop
+
+
+eval_sto:
+  call popoperand_var
+  push af
+  call pop_operand
+  ld hl,eval_sto_LUT
+  jp jumptableindex
+
+
+popstrref_to_str:
+  dec hl  ;type
+  dec hl  ;size (unused)
+  dec hl  ;size (unused)
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  ld (operandstack_ptr),hl
+  ex de,hl
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+popoperand_raw:
+;Returns HL pointing to the data
+;        BC is the size of the data
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_var
+  jr z,popraw_var
+  cp type_raw
+  jp nz,err_bad_type
+popstr_to_str:
+  dec hl
+  ld b,(hl)
+  dec hl
+  ld c,(hl)
+  or a
+  sbc hl,bc
+  ld (operandstack_ptr),hl
+  ret
+popraw_var:
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ld a,(hl)
+  cp type_raw
+  jp nz,err_bad_type
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+alloc:
+;Inputs:
+;   BC is the number of bytes to allocate
+;Outputs:
+;   HL points to the allocated space
+;   BC is preserved
+;Destroys:
+;   DE, F
+  ld hl,(heap_ptr)
+  add hl,bc
+  jp c,err_heap_overflow
+  ld de,(heap_top)
+  or a
+  sbc hl,de
+  jp nc,err_heap_overflow
+  add hl,de
+  ld (heap_ptr),hl
+  or a
+  sbc hl,bc
+  ret
+
+
+eval_var:
+  call popoperand_var
+  ;gets the var number in A
+  ;the var is a pointer to the actual data
+  call getvar_ui16
+  ex de,hl
+  ld a,(hl)
+  inc hl
+  push af
+  cp type_ui16
+  jr z,eval_var_ui16
+  cp type_raw
+  jp nz,err_syntax
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  push bc
+  ex de,hl
+  jp pushoperand_ref
+eval_var_ui16:
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  jp pushoperand_ui16
+
+
+exec_var:
+  jp pushoperand_var
+
+;   ld b,(hl)
+;   push bc
+;   call pushoperand_var
+;   pop af
+;   cp $06    ; [
+;   ret nz
+; ;Now push '[' to the opstack and proceed
+;   ret
+
+
+exec_var_index:
+  inc hl
+  ld (parsePtr),hl
+  ;Need to push the var to the
+
+eval_eq:
+  call pop2operand_ui16
+  or a
+  sbc hl,de
+  jp pushoperand_bool_z
+
+
+get_var_type:
+  dec hl
+get_var_ptr:
+  ld a,(hl)
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ld a,(hl)
+  ret
+
+
+
+
+eval_neg:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+
+  cp type_true
+  ret z
+
+  cp type_false
+  ret z
+
+  cp type_ui16
+  jr nz,+_
+  ;if it is greater than 32767, we should graduate i32
+  ;otherwise, set it as i16
+  ;For now, not doing this.
+  xor a
+  dec hl
+  dec hl
+  sub (hl)
+  ld (hl),a
+  sbc a,a
+  inc hl
+  sub (hl)
+  ld (hl),a
+  ret
+_:
+
+  cp type_xfloat
+  jr nz,+_
+  dec hl
+  ld a,(hl)
+  xor $80
+  ld (hl),a
+  ret
+_:
+
+  jp err_syntax
+
+
+eval_add:
+  ld hl,eval_add_LUT
+  jp mathop
+
+eval_sub:
+  ld hl,eval_sub_LUT
+  jp mathop
+
+eval_mul:
+  ld hl,eval_mul_LUT
+  jp mathop
+
+eval_div:
+  ld hl,eval_div_LUT
+  jp mathop
+
+mathop:
+  push hl
+  call peekoperand_2
+  call math_max_type
+  pop hl
+jumptableindex:
+;HL points to the LUT that maps types to routines
+;A is the type of the first operand
+;C is the type of the second operand
+
+;First, make sure A does not exceed the size of the LUT
+  cp (hl)
+  jp nc,err_bad_type
+  rla     ;c is set, so this does 2A+1 --> A
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  jp (hl)
+
+math_max_type:
+;The name of this wil likey change, I can't remember the proper terminology.
+;Basically, float + int should return float, for example.
+;
+;Input:
+;   A and C are the input types
+;Output:
+;   A and C are updated
+;
+  cp c
+  ret z
+
+  ld b,a
+
+  ld a,type_str
+  cp b \ ret z \ cp c \ ret z
+  ; ld a,type_tstr
+  ; cp b \ ret z \ cp c \ ret z
+  ld a,type_str_ref
+  cp b \ ret z \ cp c \ ret z
+  ld a,type_tstr_ref
+  cp b \ ret z \ cp c \ ret z
+  ld a,type_true
+  cp b \ ret z \ cp c \ ret z
+  ld a,type_false
+  cp b \ ret z \ cp c \ ret z
+
+  ld a,type_xfloat
+  cp c
+  ret z
+  cp b
+  jr nz,+_
+  ld c,a
+  ret
+_:
+
+  ld a,type_single
+  cp c
+  ret z
+  cp b
+  jr nz,+_
+  ld c,a
+  ret
+_:
+
+;We have the following types left, and we know B != C
+;   uint8
+;   uint16
+;   uint32
+;   fixed88
+;   fixed1616
+
+;   uint8+x ==> x
+
+  ld a,type_ui8
+  cp b
+  jr nz,+_
+  ld a,c
+  ret
+_:
+
+  ld a,type_ui8
+  cp c
+  jr nz,+_
+  ld a,b
+  ld c,a
+  ret
+_:
+
+;uint16+uint32 ==> uint32 + uint32
+;uint16+fixed__ ==> fixed1616 + fixed1616
+  ld a,type_ui16
+  cp b
+  jr nz,+_
+  ;C is either uint32 or fixed__
+  ld a,c
+  cp type_ui32
+  ret z
+  ld a,type_fixed1616
+  ld c,a
+  ret
+_:
+
+;uint32+fixed__ ==> xfloat+xfloat
+  ld a,type_xfloat
+  ld c,a
+  ret
+
+pop_end_of_params:
+  call is_end_of_args
+  jp nz,err_too_many_params
+  ld (operandstack_ptr),hl
+  ret
+
+is_end_of_args:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,type_param_end
+  cp (hl)
+  ret
+
+peekoperand_2:
+;A is the type of the first
+;C is the type of the second
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld c,(hl)
+  ld a,c
+  cp type_var
+  call z,peekvar
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  or a
+  jr z,variable_size
+  ld e,a
+  ld a,l
+  sub e
+  ld l,a
+  jr nc,$+3
+  dec h
+
+  ld a,(hl)
+  cp type_var
+  jp z,get_var_type   ;destroys HL
+  ret
+
+peekvar:
+;preserve HL,A
+  push hl
+  call get_var_type
+  ld c,a
+  pop hl
+  ld a,type_var
+  ret
+
+variable_size:
+;For now, these have size bytes, might change in the future?
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  scf
+  sbc hl,de
+  ld a,(hl)
+  ret
+
+pop2operand_ui16:
+  call popoperand_ui16
+  push de
+  call popoperand_ui16
+  ex de,hl
+  pop de
+  ret
+
+popoperand_str:
+;Returns HL pointing to the data
+;        BC is the size of the data
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  dec hl
+  ld a,(hl)
+  or a
+  jp z,err_missing_parameter
+  dec a
+  jr z,popui8_to_str
+  dec a
+  jp z,popui16_to_str
+  dec a
+  jp z,popui32_to_str
+  dec a
+  dec a
+  jp z,popfixed1616_to_str
+  dec a
+  jp z,popvar_to_str
+  dec a
+  jp z,poptrue_to_str
+  dec a
+  jp z,popfalse_to_str
+  dec a
+  jr z,poptstr_ref_to_str
+  dec a
+  dec a
+  jp z,popstr_to_str
+  dec a
+  jp z,popstrref_to_str
+  dec a
+  ; jp z,pop_single_to_str
+  dec a
+  jp z,pop_xfloat_to_str
+  ; dec a
+  ; jp z,pop__to_str
+
+  jp err_could_not_convert
+poptstr_ref_to_str:
+  ld hl,(operandstack_ptr)
+  dec hl
+  dec hl
+  ld b,(hl)
+  dec hl
+  ld c,(hl)
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  ld (operandstack_ptr),hl
+
+#ifdef STACK_SAFE
+  push de
+  ld de,(operandstack_bottom)
+  or a
+  sbc hl,de
+  pop de
+  jp c,err_operand_stack_overflow_pop
+#endif
+
+;DE points to the string
+;BC is the size of the existing string
+;For now, copy it to OP1
+  ld hl,OP1
+  ex de,hl
+  ld a,b
+  or c
+  jr nz,+_
+  ex de,hl
+  ld (hl),a
+  ret
+_:
+  call tokstr2ascii
+  ld hl,OP1
+
+  ret
+
+popui8_to_str:
+;first need to popoperand_uint8
+  call popoperand_ui8
+  ld hl,OP1
+#include "subroutines/uitoa_8.z80"
+
+
+poptrue_to_str:
+popfalse_to_str:
+  call popoperand_bool
+_:
+false_to_str:
+  ld hl,s_false
+  jr z,+_
+true_to_str:
+  ld hl,s_true
+_:
+  ld de,OP1
+  ld bc,6
+  ldir
+  ld hl,OP1
+  ret
+s_false:
+  .db "false",0
+s_true:
+  .db "true",0
+
+popui16_to_str:
+;first need to popoperand_uint8
+  call popoperand_ui16
+  ld hl,OP1
+#include "subroutines/uitoa_16.z80"
+
+popui32_to_str:
+;first need to popoperand_uint8
+  call popoperand_ui32
+  ld ix,OP1+10
+  ld (ix),0
+#include "subroutines/uint32tostr_baseC.z80"
+
+popfixed1616_to_str:
+  call popoperand_fixed1616
+  ld b,h
+  ld c,l
+  ld hl,OP1
+#include "subroutines/fixed1616_to_str.z80"
+
+
+pop_xfloat_to_str:
+  ld bc,-10
+  add hl,bc
+  ld (operandstack_ptr),hl
+  ld bc,OP1
+  call xtostr_p0
+  ld h,b
+  ld l,c
+  ret
+
+var_to_str:
+  ld a,(hl)
+  jr +_
+popvar_to_str:
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+_:
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ld a,(hl)
+  inc hl
+
+  or a
+  jp z,err_fatal
+  dec a
+  jr z,ui8_to_str
+  dec a
+  jp z,ui16_to_str
+  dec a
+  jp z,ui32_to_str
+  dec a
+  dec a
+  jp z,fixed1616_to_str_
+  dec a
+  jp z,var_to_str
+  dec a
+  jp z,true_to_str
+  dec a
+  jp z,false_to_str
+  dec a
+  jr z,tstr_ref_to_str
+  dec a
+  dec a
+  jr z,str_to_str
+  dec a
+  ; jr z,strref_to_str
+  dec a
+  jr z,str_to_single
+  dec a
+  jr z,str_to_xfloat
+  jp err_could_not_convert
+
+
+
+ui8_to_str:
+ui16_to_str:
+ui32_to_str:
+fixed1616_to_str_:
+tstr_ref_to_str:
+  jp err_could_not_convert
+
+str_to_str:
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+str_to_single:
+  ld bc,OP1
+  call single2str
+  ld h,b
+  ld l,c
+  ret
+
+str_to_xfloat:
+  ld bc,OP1
+  call xtostr_p0
+  ld h,b
+  ld l,c
+  ret
+
+tokstr2ascii:
+  ld a,e
+  cp OP3&255
+  jp nc,err_fatal
+  push hl
+  push bc
+  push de
+  bcall(_Get_Tok_Strng)
+  ld hl,OP3
+  pop de
+  ldir
+  pop bc
+  pop hl
+  ld a,(hl)
+  call is2byte
+  jr nz,+_
+  cpi
+  jp po,err_fatal
+_:
+  cpi
+  jp pe,tokstr2ascii
+  xor a
+  ld (de),a
+  ret
+
+popoperand_var:
+;pops the var number into A from the operand stack
+#ifdef STACK_SAFE
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  dec hl
+  scf
+  sbc hl,de
+  jp c,err_operand_stack_overflow_pop
+#endif
+  ld hl,(operandstack_ptr)
+  dec hl
+#ifdef STACK_SAFE
+  ld a,(hl)
+  cp type_var
+  jp nz,err_bad_type
+#endif
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+  ret
+
+popoperand_ui8:
+;pops a uint8 into A from the operand stack
+#ifdef STACK_SAFE
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  dec hl
+  scf
+  sbc hl,de
+  jp c,err_operand_stack_overflow_pop
+#endif
+  ld hl,(operandstack_ptr)
+  dec hl
+#ifdef STACK_SAFE
+  ld a,(hl)
+  cp type_ui8
+  jr z,+_
+  cp type_ui16
+  jp nz,err_bad_type
+;  set ,(iy+)      ;set flag that we have reduced accuracy
+  dec hl
+_:
+#endif
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+  ret
+
+popoperand_ui16:
+;pops a uint16 into DE from the operand stack
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_ui16
+  jr z,+_
+  cp type_true
+  jr z,popui16_1
+  cp type_false
+  jr z,popui16_0
+  cp type_var
+  jp nz,err_bad_type
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+getvar_ui16:
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+;HL points to the var data
+  ld a,(hl)
+  inc hl
+  cp type_ui16
+  jp nz,err_syntax
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ret
+
+_:
+#endif
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+_:
+  ld (operandstack_ptr),hl
+  ret
+popui16_1:
+  ld de,1
+  jr -_
+popui16_0:
+  ld de,0
+  jr -_
+
+
+pop2operand_xfloat:
+  call popoperand_xfloat
+  ;move it to xOP3
+  ld de,xOP3
+  call mov10_p0
+
+  call popoperand_xfloat
+  ld de,xOP3
+  ld bc,(operandstack_ptr)
+  ret
+
+popoperand_xfloat:
+  ld hl,to_xfloat_LUT
+  jp pop_to
+
+popoperand_single:
+  ld hl,to_single_LUT
+  jp pop_to
+
+pop_to:
+  push hl
+  call pop_operand
+  pop hl
+  jp jumptableindex
+
+
+pop_operand:
+; Need to pop off the operand stack
+; leave with DE pointing to the start of the element data, A as the type-1
+  ld de,(operandstack_ptr)
+  dec de
+  ld a,(de)
+  cp type_var
+  jr z,popvar_to
+  ld c,a
+  dec c
+  ld hl,type_size_LUT
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  or a
+  jr z,pop_to_variable_size
+  ;need to do (DE-A+1))
+  dec a
+  ld b,a
+  ld a,e
+  sub b
+  ld e,a
+  jr nc,$+3
+  dec d
+  ld (operandstack_ptr),de
+  ld a,c
+  ret
+
+pop_to_variable_size:
+  ex de,hl
+  dec hl
+  ld e,a
+  ld b,(hl)
+  dec hl
+  ld c,(hl)
+  or a
+  sbc hl,bc
+  ld a,e
+  ex de,hl
+  ret
+
+popvar_to:
+  ex de,hl
+  dec hl
+  ld (operandstack_ptr),hl
+  call get_var_ptr
+  inc hl
+  ex de,hl
+  dec a
+  cp type_str-1
+  jr z,+_
+  cp type_raw-1
+  ret nz
+_:
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+popoperand_ui32:
+;pops a uint32 into DEHL from the operand stack
+#ifdef STACK_SAFE
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  dec hl
+  dec hl
+  dec hl
+  dec hl
+  scf
+  sbc hl,de
+  jp c,err_operand_stack_overflow_pop
+#endif
+  ld hl,(operandstack_ptr)
+  dec hl
+#ifdef STACK_SAFE
+  ld a,(hl)
+  cp type_ui32
+  jp nz,err_bad_type
+#endif
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  dec hl
+  ld a,(hl)
+  dec hl
+  ld (operandstack_ptr),hl
+  ld l,(hl)
+  ld h,a
+  ret
+
+popoperand_fixed1616:
+;pops a fixed1616 into DEHL from the operand stack
+#ifdef STACK_SAFE
+  ld hl,(operandstack_ptr)
+  ld de,(operandstack_bottom)
+  dec hl
+  dec hl
+  dec hl
+  dec hl
+  scf
+  sbc hl,de
+  jp c,err_operand_stack_overflow_pop
+#endif
+  ld hl,(operandstack_ptr)
+  dec hl
+#ifdef STACK_SAFE
+  ld a,(hl)
+  cp type_fixed1616
+  jp nz,err_bad_type
+#endif
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  dec hl
+  ld a,(hl)
+  dec hl
+  ld (operandstack_ptr),hl
+  ld l,(hl)
+  ld h,a
+  ret
+
+pushoperand_var:
+;pushes DE to the operand stack
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  inc bc
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),a
+  inc hl
+  ld (hl),type_var
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+pushoperand_bool_z:
+  ld a,type_true
+  jr z,+_
+  inc a
+_:
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  ld hl,(operandstack_top)
+  or a
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),a
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+pushoperand_ui16_BC:
+  ld d,b
+  ld e,c
+  jr pushoperand_ui16
+
+exec_ans:
+  ld hl,(Ans)
+pushoperand_ui16_HL:
+  ex de,hl
+pushoperand_ui16:
+;pushes DE to the operand stack
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  inc bc
+  inc bc
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
+  ld (hl),type_ui16
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+pushoperand_fixed1616:
+;pushes DE.BC to the operand stack
+  push de
+#ifdef STACK_SAFE
+  ld de,(operandstack_ptr)
+  inc de
+  inc de
+  inc de
+  inc de
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,de
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  pop bc
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  ld (hl),type_fixed1616
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+
+exec_quote:
+;Gonna push a string-by-reference to the stack
+  push hl
+  call seek_EOS
+  ld (parsePtr),hl
+  pop de
+  ;DE points to the start
+  ;BC is the size
+  ;A is the type
+  ld a,type_tstr_ref
+pushoperand_ref:
+  push bc
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  inc bc
+  inc bc
+  inc bc
+  inc bc
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
+  pop de
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
+  ld (hl),a
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+
+pushoperand_ui32_DEHL:
+;pushes DEHL to the operand stack
+
+  push de
+  ex de,hl
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  inc bc
+  inc bc
+  inc bc
+  inc bc
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
+  pop de
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
+  ld (hl),type_ui32
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+atoui16:
+;===============================================================
+;Input:
+;     DE points to the base 10 number string in RAM.
+;Outputs:
+;     HL is the 16-bit value of the number
+;     DE points to the byte after the number
+;     BC points to the start of the number
+;     z flag means it ended on a decimal point.
+;Destroys:
+;     A (actually, add 30h and you get the ending token)
+;     BC
+;===============================================================
+  ld hl,0
+  push de   ;save the pointer
+  jr atoui16_start
+_:
+  inc de
+  ld b,h
+  ld c,l
+  add hl,hl
+  add hl,hl
+  add hl,bc
+  add hl,hl
+  add a,l
+  ld l,a
+  jr nc,atoui16_start
+  inc h
+atoui16_start:
+  ld a,(de)
+  sub 30h
+  cp 10
+  jr c,-_
+  pop bc
+  ret
+
+CustomError:
+  ld bc,12
+_:
+  ex de,hl
+  ld de,appErr1
+  ldir
+  xor a
+  ld (de),a
+  ld a,2
+HandleError:
+  jp GramHandl
+
+GetKeyDebounce:
+  ei
+  halt
+  call GetKey
+  ld hl,k_save
+  cp (hl)
+  jr nz,newkeypress
+;if the keys match, decrement k_count
+  inc hl
+  dec (hl)
+  jr z,+_
+  xor a
+  ret
+_:
+  inc hl
+  ld a,(hl)
+  sub K_DELAY_ACCEL+1
+  jr nc,+_
+  xor a
+_:
+  inc a
+  ld (hl),a
+  dec hl
+  ld (hl),a
+  dec hl
+  ld a,(hl)
+  ret
+newkeypress:
+  ld (hl),a
+  inc hl
+  ld (hl),K_DELAY_DEFAULT
+  inc hl
+  ld (hl),K_DELAY_DEFAULT
+  ret
+;===============================================================
+GetKey:
+;===============================================================
+;Outputs:
+;     a is a value from 0 to 56 that is the keypress
+;    bc is also the key press
+;     d has a bit reset, the rest are set (this is the last key group tested)
+;     e is a with a mask of %11111000
+;    hl is not modified
+;===============================================================
+  di
+  ld de,$FE00
+  ld a,d
+  out (1),a
+  push af \ pop af
+  in a,(1)
+  ld b,e
+  xor $FF \ jr z,+_
+  ld d,a
+  ld c,16 \ cp 15 \ ret z
+  ld c,5
+  ld a,3 \ and d \ cp 3 \ ret z \ inc c
+  ld a,5 \ and d \ cp 5 \ ret z \ inc c
+  ld a,10 \ and d \ cp 10 \ ret z \ inc c
+  ld a,12 \ and d \ cp 12 \ ret z
+  ld a,d
+  cpl
+  ld c,e
+  jp key_add
+_:
+  ld c,a
+_:
+  rlc d
+  ld a,d
+  out (1),a
+  inc e
+  sub 7Fh
+  jp z,CheckOnPress
+  in a,(1)
+  inc a
+  jr z,-_
+  dec a
+key_add:
+  inc c
+  rra
+  jr c,key_add
+  ld a,e
+  rlca \ rlca \ rlca
+  add a,c
+  ld c,a
+  ret
+CheckOnPress:
+  call CheckStatus
+  ret nz
+  ld c,41
+  ret
+
+ErrorJump:
+  ; If we are currently parsing an errorthen we don't want to be stuck in an infinite loop !
+  bit errorChecking,(iy+InternalFlag)
+  ret nz
+  set errorChecking,(iy+InternalFlag)
+
+  push de
+  push hl
+  push bc
+  ld hl,(parsePtr)
+  ld (ErrorLoc),hl
+  ld hl,(parseError)
+  ld a,h
+  or l
+  ld a,(cxErrorEP)
+  call z,GramHandl
+  jr z,L5c05
+  ld c,a
+  ld b,0
+  ld de,(parsePtr)
+  ld (qmarkVar),de
+  ld (parsePtr),hl
+  ld hl,(ThetaPrimeVar)
+  push hl
+  ld hl,(Ans)
+  ld (Ans),bc
+  push hl
+  call ParserNext
+  ld a,(hl)
+  ld hl,(qmarkVar)
+  ld (parsePtr),hl
+  cp $11
+  jr nz,+_
+  pop hl
+  pop hl
+  pop hl
+  jr L5c06
+_:
+  pop hl
+  ld (Ans),hl
+  pop hl
+  ld (ThetaPrimeVar),hl
+L5c05:
+  pop bc
+L5c06:
+  pop hl
+  pop de
+  res errorChecking,(iy+InternalFlag)
+  ret
+
+isStartMenu_valid:
+  ld a,(OP1+1)
+  cp $23
+  jr z,StartMenu_invalid
+  cp $21
+  jr z,StartMenu_invalid
+
+; Discard appvars for now
+  ld a,(OP1)
+  cp $15
+  jr z,StartMenu_invalid
+
+
+  ld hl,(VATPtr)
+  ld a,(hl)
+  cp 1        ;don't want lists
+  jr nz,+_
+StartMenu_invalid:
+  or a
+  ret
+_:
+  cp 13       ;don't want complex lists
+  jr z,StartMenu_invalid
+  cp 17h      ;don't want GroupVars
+  jr z,StartMenu_invalid
+
+  bit 6,(iy+UserFlags)     ;must be AppV
+  jr z,+_
+  cp 15h
+  ret nz
+_:
+;need to pull in six bytes
+#ifdef include_LoadTSA
+  call LoadReadArc
+#endif
+  ld bc,-3
+  add hl,bc
+  ld e,(hl)
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld a,(hl)
+  or a
+  jr z,+_
+  ld b,a
+  dec hl
+  ld a,(hl)
+  add a,10
+  add a,e
+  ld e,a
+  ld a,b
+  jr nc,+_
+  inc d
+  jp po,+_
+  inc a
+  ld d,$40
+_:
+  ex de,hl
+  ld de,cmdShadow
+  ld bc,2
+  call TSA
+  ld bc,(cmdShadow)
+  ;need to save A:HL, BC
+  ld (TempWord3),a
+  ld (TempWord4),bc
+  ld (TempWord5),hl
+_:
+  ld bc,4
+  call TSA
+  ld hl,cmdShadow+2
+  bit OnBlockFlag,(iy+UserFlags)   ;ASM only
+  jp nz,asm_header_only
+
+; ;non-ASM and ASM alike
+;   bit baseInput,(iy+UserFlags)
+;   ret z   ;doesn't have any special filters
+
+;must be a Parsnip Var
+;header is $B0,$30,$3E
+  ld a,(hl)
+  cp $B0 \ ret nz
+  inc hl \ ld a,(hl) \ cp $30 \ ret nz
+  inc hl \ ld a,(hl) \ cp $3E \ ret
+
+asm_header_only:
+;first two bytes must be $BB,$6D
+;
+  ld a,(hl) \ cp $BB \ ret nz
+  inc hl \ ld a,(hl) \ cp $6D \ ret nz
+  bit baseInput,(iy+UserFlags)
+  ret z
+;next two bytes must be $55,$C9
+;
+  inc hl \ ld a,(hl) \ cp $55 \ ret nz
+  inc hl \ ld a,(hl) \ cp $C9
+  ret
+
+#ifdef include_LoadTSA
+ReadArc:
+  call LoadReadArc
+  jp TSA
+#else
+ReadArc = TSA
+#endif
+ReadArcData:
+#ifdef include_loadTSA
+  .dw ReadArcEnd-ReadArc-2
+#endif
+#include "readarc.z80"
+ReadArcEnd:
+
+ZeroMem768:
+  ld bc,768
+ZeroMem:
+  ld a,b \ or c \ ld a,0
+  push de
+  call nz,SetMem
+  pop bc
+  ret
+SetSmallMem:
+  ld (hl),a
+  inc hl
+  djnz SetSmallMem
+  ret
+SetMem:
+  ld (hl),a
+  ld d,h
+  ld e,l
+  cpi
+  ret po
+  ex de,hl
+ReadRam:
+  ldir
+  ret
+
+SetSpeed:
+  in a,(20h)
+  ld b,a
+  bit 1,c
+  jr z,+_
+  cpl
+  and 1
+  ld c,a
+_:
+  in a,(2)
+  rlca
+  and c
+  out (20h),a
+  ld c,b
+  ld b,0
+  ret
+
+;===============================================================
+GetParsnipStr:
+;===============================================================
+;Input:
+;    HL points to the start of the string
+;Outputs:
+;     A is the value of the ending byte of the string
+;    BC is the size of the string
+;    HL points to the ending byte of the string
+;     z flag is set
+;===============================================================
+  ld bc,0
+_:
+  inc hl
+  inc bc
+  ld a,(hl)
+  cp 4 \ ret z
+  cp 3Fh \ ret z
+  cp 2Ah \ jr nz,-_
+  inc hl
+  ret
+FindGVarData:
+  ld hl,GVarData
+  rst rMov9ToOP1
+  bcall(_ChkFindSym)
+  ret nc
+  ld hl,3
+  bcall(_CreateAppVar)
+  ret
+
+
+#include "main.z80"
+#include "progmeta.z80"
+#include "ramcode.z80"
+#include "routines.z80"
+#include "isort.z80"
+#include "SetUpData.z80"
+#include "parserhook.z80"
+#include "tokenhook.z80"
+#ifdef include_LoadTSA
+#include "cmd/loadtsa.z80"
+#endif
+GPutSI:
+;     The string to display immediately follows the call
+;       The string is zero terminated
+;Outputs:
+;     All registers are preserved
+  ex (sp),hl
+  push de
+  push bc
+  push af
+  call GPutS
+  inc hl
+  pop af
+  pop bc
+  pop de
+  ex (sp),hl
+  ret
+#include "gfx/text.z80"
+DrawRectToGraphI:
+  ex (sp),hl
+;  push de \ push bc \ push af
+  ld e,(hl) \ inc hl
+  ld c,(hl) \ inc hl
+  ld b,(hl) \ inc hl
+  ld d,(hl) \ inc hl
+  ld a,(hl) \ inc hl
+  ex (sp),hl
+DrawRectToGraph:
+#include "gfx/drawrect.z80"
+#include "gfx/bigsprite.z80"
+#include "gfx/gbufToLCD.z80"
+#include "subroutines/diRestore.z80"
+#include "subroutines/CheckStatus.z80"
+#include "subroutines/itoa_16.z80"
+#include "subroutines/util.z80"
+#include "subroutines/searchlabel.z80"
+#include "parsnipdata.z80"
+#include "math.z80"
+#include "math/mul16.z80"
+#include "math/BC_Div_DE_faster.z80"
+#include "math/div16_continue.z80"
+#include "err.z80"
+
+
+
+xconst_to_xOP1_p0:
+  ld hl,xconst_to_xOP1
+  ld (next_page_call_address),hl
+  jp next_page_call
+
+strtox_p0:
+  ld de,strtox
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xtostr_p0:
+  ld de,xtostr
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xmul_p0:
+  ld ix,xmul
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+xdiv_p0:
+  ld ix,xdiv
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+xadd_p0:
+  ld ix,xadd
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+xsub_p0:
+  ld ix,xsub
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+
+#include "ops/add.z80"
+#include "ops/sub.z80"
+#include "ops/mul.z80"
+#include "ops/div.z80"
+#include "ops/sto.z80"
+#include "convert/to_xfloat.z80"
+#include "convert/to_single.z80"
+
+#include "commandtable.z80"
+.echo "Page 0: ",$8000-$," bytes remaining"
+
+; .fill $8000-$,255
+.fill $8000-$,0
+#include "01.z80"
+.echo "RamCode : ",RamCodeEnd-RamCodeStart, " bytes"

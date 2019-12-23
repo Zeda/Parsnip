@@ -1,0 +1,424 @@
+#define CUR_COUNT_RESET 23
+_IsA2ByteTok  = 42A3h
+keyflags    = 35
+shift     = 0
+alpha     = 1
+shiftprev = 2
+alphaprev = 3
+holdmod   = 4
+cursorblink = 7
+
+curcount    = scrap
+penTemp     = curcount+1
+textRow_base= penTemp+2
+mode_box_height  = textRow_base+2
+mode_box_width   = mode_box_height+1
+input_end_text   = mode_box_width+1
+
+input:
+;Inputs: DE points to the ending string
+;Save the location of the ending string
+  ld (input_end_text),de
+
+;Save the text pointer for when we clear input.
+  ld hl,(textRow)
+  ld (textRow_base),hl
+
+;set up the input buffer
+  ld hl,(input_base)
+  ld (input_head),hl
+  xor a
+  ld (hl),a
+  ld bc,(input_size)
+  add hl,bc
+  dec hl    ;make room for ending NULL
+  ld (input_top),hl
+
+
+;Get the dimensions of the mode box
+;  Get the max dimensions of the four mode characters
+  ld hl,chardim
+  ld (prev_page_call_address),hl
+  ld h,a
+  ld l,a
+  ld de,input_mode_LUT
+  ld b,4
+mode_dim_loop:
+  push bc
+  ld a,(de)
+  inc de
+  call prev_page_call
+  ld a,h
+  cp b
+  jr nc,+_
+  ld h,b
+_:
+  ld a,l
+  cp c
+  jr nc,+_
+  ld l,c
+_:
+  pop bc
+  djnz mode_dim_loop
+
+;  Add 2 to the width and height
+  inc h
+  inc l
+  inc h
+  inc l
+  ld (mode_box_height),hl
+
+;Draw the box that displays input mode
+  call draw_modebox
+
+;Clear the input
+  call input_clear
+
+;clear input mode
+  xor a
+  ld (flags+keyflags),a
+
+;Set text mode to overwrite, but save original settings
+  ld a,(OutputLogic)
+  push af
+  xor a
+  ld (OutputLogic),a
+
+;Clear out any keypresses
+  out (1),a
+_:
+  in a,(1)
+  inc a
+  jr nz,-_
+
+;write 0xFF to the key port to flush
+;  dec a
+;  out (1),a
+
+
+;Print the current input
+  call inp_dispstr
+
+;Restore text coords
+  ld hl,(penTemp)
+  ld (textRow),hl
+
+;Get input
+  call inputloop
+
+;Restore text logic
+  pop af
+  ld (OutputLogic),a
+
+;Remove the mode box
+  ld hl,(mode_box_height)
+  ld c,0
+  ld b,l
+  ld a,96
+  sub h
+  ld e,a
+  ld d,h
+  xor a
+  call drawrect
+
+;redraw the screen to show cursor removed and modebox removed
+  call inp_disp
+
+;append a null byte to end the input string.
+  ld hl,(input_head)
+  ld (hl),0
+  ld hl,(input_base)
+  ret
+inputloop:
+  ld hl,(textRow)
+  ld (penTemp),hl
+  res cursorblink,(iy+keyflags)
+  ld a,CUR_COUNT_RESET
+  ld (curcount),a
+input_key_loop:
+  in a,(4)
+  and 8
+  jp z,input_ON
+
+;blink the cursor
+  ld hl,curcount
+  dec (hl)
+  jr nz,+_
+  ld (hl),CUR_COUNT_RESET
+  ld a,(flags+keyflags)
+  xor 1<<cursorblink
+  ld (flags+keyflags),a
+  and 1<<cursorblink
+  jr z,$+4
+  ld a,$E0    ;Cursor
+  call inp_VPutMap
+  call inp_disp
+  ld hl,(penTemp)
+  ld (textRow),hl
+_:
+  ld hl,getKeyDebounce
+  ld (prev_page_call_address),hl
+  call prev_page_call
+  or a
+  jr z,input_key_loop
+  push af
+  ld a,' '
+  call inp_VPutMap
+  ld hl,(penTemp)
+  ld (textRow),hl
+  pop af
+  cp 9
+  ret z
+  call +_
+  jr inputloop
+_:
+  cp 15
+  jr z,input_clear
+  cp 56
+  jr z,input_del
+  call getKeyTok
+  call redraw_mode
+  ret c
+  ld a,d
+  ld c,e
+  sub 1
+  inc a
+  ccf
+  ld de,(input_head)
+  ld hl,(input_top)
+  sbc hl,de
+  ret z
+  ret c
+
+  ex de,hl
+  or a
+  jr z,+_
+  ld (hl),a
+  inc hl
+_:
+  ld (hl),c
+  inc hl
+  ld (hl),0
+  ld (input_head),hl
+  call inp_dispstr
+
+;Restore text coords
+  ld hl,(penTemp)
+  ld (textRow),hl
+  ret
+input_clear:
+  call +_
+  jr c,input_clear
+  jp inp_disp
+input_del:
+  call +_
+  jp inp_disp
+_:
+  ld de,(input_head)
+  ld hl,(input_base)
+  or a
+  sbc hl,de
+  ret z
+  ;jp nc,fatal_error
+  ex de,hl
+  dec hl
+  ld (input_head),hl
+  ld e,(hl)
+  ld d,0
+  dec hl
+  ld a,(hl)
+  bcall(_IsA2ByteTok)
+  jr nz,+_
+  ld d,a
+  ld (input_head),hl
+  .db $FE     ;start of `cp *`, skips the `inc hl`
+_:
+  inc hl
+  ld (hl),0
+  ;DE is the token to erase
+
+  ;redraw the input so that we know where to start drawing spaces!
+  push de
+  call inp_dispstr
+  pop de
+
+  ld hl,OP3
+  ld a,d
+  or a
+  jr z,+_
+  ld (hl),d
+  inc hl
+_:
+  ld (hl),e
+  ld l,OP3&255
+  bcall(_Get_Tok_Strng)
+;BC is the length of the string
+  ld a,b
+  or c
+  jr z,input_del_finish
+
+;Now draw spaces for each char
+;ideally, we'd erase based on each char's width
+
+_:
+  push bc
+;  push hl
+  ld a,' '
+  call inp_VPutMap
+;  pop hl
+  pop bc
+  cpi
+  jp pe,-_
+input_del_finish:
+  ld hl,(penTemp)
+  ld (textRow),hl
+  scf
+  ret
+redraw_mode:
+  call pushpop
+;Draw the input mode
+  ld hl,(textRow)
+  push hl
+  ld a,(GrayRotate)
+  and $18
+  jr z,+_
+  ld hl,mode_box_width
+  ld a,98
+  sub (hl)
+  ld h,a
+  ld l,0
+  jr mode_coords_computed
+_:
+  ld hl,$1700
+mode_coords_computed:
+  ld (textRow),hl
+
+  ld a,(flags+keyflags)
+  ld l,a
+  rrca
+  rrca
+  xor l
+  and 3
+  jr nz,+_
+  xor l
+  and 3
+  jr nz,no_change_input_mode
+_:
+  ld a,l
+  and %11110011
+  ld h,a
+  ld a,l
+  and 3
+  add a,a
+  add a,a
+  or h
+  ld (flags+keyflags),a
+  ld hl,input_mode_LUT
+  and 3
+  add a,l
+  ld l,a
+#if input_mode_LUT>252
+  jr nc,+_
+  inc h
+_:
+#endif
+  ld a,(hl)
+  push af
+  call draw_modebox
+  pop af
+
+;  ld hl,$5B01
+;  ld hl,$1701
+;  ld (textRow),hl
+  call inp_VPutMap
+  call inp_disp
+no_change_input_mode:
+  pop hl
+  ld (textRow),hl
+  ret
+draw_modebox:
+  ld hl,(mode_box_height)
+  ld c,0
+  ld b,l
+  ld a,96
+  sub h
+  ld e,a
+  ld d,h
+  ld a,1
+  push de
+  push bc
+  call drawrect
+  pop bc
+  pop de
+  xor a
+  dec b
+  inc e
+  call drawrect
+inp_disp:
+  ld hl,GraphToLCD
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+input_ON:
+  ld hl,ONErr
+  ld (prev_page_call_address),hl
+  call prev_page_call
+  jr inp_disp
+inp_dispstr:
+;Reset text coords
+  ld hl,(textRow_base)
+  ld (textRow),hl
+
+;Draw the current input
+  ld hl,(input_base)
+  call inp_VPutTokS
+
+;Save the text coordinate
+  ld hl,(textRow)
+  ld (penTemp),hl
+
+;Draw a blank space:
+;  xor a      ;already zero from VPutS
+  call inp_VPutMap
+
+;Draw the end text
+  ld hl,(input_end_text)
+  call inp_VPutS
+
+
+;Draw another blank space:
+;  xor a
+  jp inp_VPutMap
+inp_VPutTokS:
+  ld a,(hl)
+  or a
+  ret z
+  push hl
+  ld a,(hl)
+  bcall(_IsA2ByteTok)
+  push af
+  bcall(_Get_Tok_Strng)
+  ld hl,OP3+1
+  add hl,bc
+  ld (hl),0
+  ld hl,OP3
+  call inp_VPutS
+  pop af
+  pop hl
+  inc hl
+  jr nz,inp_VPutTokS
+  inc hl
+  jr inp_VPutTokS
+inp_VPutS:
+  push hl
+  ld hl,GPutS
+  ld (prev_page_call_address),hl
+  pop hl
+  jp prev_page_call
+inp_VPutMap:
+  push hl
+  ld hl,PutSC
+  ld (prev_page_call_address),hl
+  pop hl
+  jp prev_page_call
+input_mode_LUT:
+.db " ",$1E,"Aa"

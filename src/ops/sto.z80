@@ -1,0 +1,194 @@
+;This is for the sto token (-->)
+;Input:
+;   stack is the var#
+;   DE points to the data to sto
+;   if it is type_str or type_raw, BC is the size
+
+
+eval_sto_LUT:
+  .db (+_-$-1)/2
+  .dw sto_ui8
+  .dw sto_ui16
+  .dw sto_ui32
+  .dw sto_fixed88
+  .dw sto_fixed1616
+  .dw sto_var
+  .dw sto_true
+  .dw sto_false
+  .dw sto_tstr_ref
+  .dw sto_raw
+  .dw sto_str
+  .dw sto_str_ref
+  .dw sto_single
+  .dw sto_xfloat
+_:
+
+
+sto_ui8:
+  ld a,type_ui8
+  jr sto_
+
+sto_ui32:
+  ld a,type_ui32
+  jr sto_
+
+sto_fixed88:
+  ld a,type_fixed88
+  jr sto_
+
+sto_fixed1616:
+  ld a,type_fixed1616
+  jr sto_
+
+sto_ui16:
+  ld a,type_ui16
+sto_:
+  push de   ;dataptr
+  push af   ;type
+  ld hl,type_size_LUT
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld c,(hl)
+  ld b,0
+  push bc   ;size
+  call alloc
+  pop bc
+  pop af
+  ld (hl),a
+  ex de,hl
+  pop hl
+  push de
+  inc de
+  dec bc
+  ldir
+  pop de
+sto_var_DE:
+;stack has the low byte as the var#
+;DE is the pointer to store
+  pop af
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  ret
+
+sto_var:
+  jp err_syntax
+
+sto_true:
+  ld a,type_true
+  jr +_
+sto_false:
+  ld a,type_false
+_:
+  push af
+  ld bc,1
+  call alloc
+  pop af
+  ld (hl),a
+  ex de,hl
+  jr sto_var_DE
+
+
+sto_str_ref:
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+  ld a,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ex de,hl
+  jr +_
+sto_tstr_ref:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+
+  ld hl,OP1
+  ex de,hl
+  ld a,b
+  or c
+  jr nz,+_
+  ex de,hl
+  ld (hl),a
+  ret
+_:
+  call tokstr2ascii
+  ld hl,OP1
+  call stringlength
+  ld de,OP1
+  ld a,type_str
+  jr +_
+sto_raw:
+  ld a,type_raw
+  jr +_
+sto_str:
+  ld a,type_str
+_:
+  push de
+  push bc   ;size of string
+  push af
+  inc bc
+  inc bc
+  inc bc
+  call alloc
+  pop af
+  ld (hl),a
+  pop bc
+  pop de
+  push hl
+  inc hl
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  ex de,hl
+  ld a,b
+  or c
+  jr z,$+4
+  ldir
+  pop de
+  jr sto_var_DE
+
+sto_single:
+  push de
+  ld bc,5
+  call alloc
+  ld (hl),type_single
+  ex de,hl
+  pop hl
+  push de
+  inc de
+  call mov4_p0
+  pop de
+  jp sto_var_DE
+
+sto_xfloat:
+  push de
+  ld bc,11
+  call alloc
+  ld (hl),type_xfloat
+  ex de,hl
+  pop hl
+  push de
+  inc de
+  call mov10_p0
+  pop de
+  jp sto_var_DE

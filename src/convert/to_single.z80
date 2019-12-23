@@ -1,0 +1,33 @@
+to_single_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_single
+  .dw ui16_convert_to_single
+  .dw ui32_convert_to_single
+  .dw fixed88_convert_to_single
+  .dw fixed1616_convert_to_single
+  .dw var_convert_to_single
+  .dw true_convert_to_single
+  .dw false_convert_to_single
+  .dw tstr_ref_convert_to_single
+  .dw raw_convert_to_single
+  .dw str_convert_to_single
+  .dw str_ref_convert_to_single
+  .dw single_convert_to_single
+  .dw xfloat_convert_to_single
+_:
+
+ui8_convert_to_single:
+ui16_convert_to_single:
+ui32_convert_to_single:
+fixed88_convert_to_single:
+fixed1616_convert_to_single:
+var_convert_to_single:
+true_convert_to_single:
+false_convert_to_single:
+tstr_ref_convert_to_single:
+raw_convert_to_single:
+str_convert_to_single:
+str_ref_convert_to_single:
+single_convert_to_single:
+xfloat_convert_to_single:
+  jp err_syntax

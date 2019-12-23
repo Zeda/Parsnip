@@ -1,0 +1,33 @@
+to_ui16_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_ui16
+  .dw ui16_convert_to_ui16
+  .dw ui32_convert_to_ui16
+  .dw fixed88_convert_to_ui16
+  .dw fixed1616_convert_to_ui16
+  .dw var_convert_to_ui16
+  .dw true_convert_to_ui16
+  .dw false_convert_to_ui16
+  .dw tstr_ref_convert_to_ui16
+  .dw raw_convert_to_ui16
+  .dw str_convert_to_ui16
+  .dw str_ref_convert_to_ui16
+  .dw single_convert_to_ui16
+  .dw xfloat_convert_to_ui16
+_:
+
+ui8_convert_to_ui16:
+ui16_convert_to_ui16:
+ui32_convert_to_ui16:
+fixed88_convert_to_ui16:
+fixed1616_convert_to_ui16:
+var_convert_to_ui16:
+true_convert_to_ui16:
+false_convert_to_ui16:
+tstr_ref_convert_to_ui16:
+raw_convert_to_ui16:
+str_convert_to_ui16:
+str_ref_convert_to_ui16:
+single_convert_to_ui16:
+xfloat_convert_to_ui16:
+  jp err_syntax

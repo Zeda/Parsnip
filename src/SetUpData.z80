@@ -1,0 +1,73 @@
+SetUpData:
+  bcall(_RunIndicOff)
+  call setupRAMdata
+  ld hl,ReadArcData
+  ld de,TSA
+;mov 70 bytes
+  call mov14
+  call mov14
+  call mov14
+  call mov14
+  call mov14
+  ldi
+  in a,(6)
+  ld (page_restore),a
+
+  ld hl,plotSScreen
+  ld (BufPtr),hl
+  ld (GrayBufPtr),hl
+
+;Set up operand and operator stack pointers
+  ld hl,appBackUpScreen
+  ld (operandstack_ptr),hl
+  ld (operandstack_bottom),hl
+  inc h
+  inc h
+  ld (operandstack_top),hl
+  xor a
+  inc h
+  dec hl
+;  ld hl,appBackUpScreen+767
+  ld (opstack_ptr),hl
+  ld (hl),a
+
+;Set up heap pointers
+  ld hl,saveSScreen
+  ld (heap_ptr),hl
+  ld (heap_bottom),hl
+  inc h
+  inc h
+  inc h
+  ld (heap_top),hl
+
+; Need to clear 108 bytes at pvars
+  ld b,108
+  ld hl,pvars
+  call SetSmallMem
+
+;
+  ld h,a
+  ld l,a
+  ld (flags+33),a
+  ld (flags+34),hl
+  ld (GrayRotate),hl
+
+  ld a,3
+  ld (OutputLogic),a
+  ld (TextPauseTime),a
+  ld hl,FontSet
+  ld (FontPointer),hl
+
+  ld hl,5555h
+  ld (GrayMask),hl
+
+  pop hl
+  ld (SPSave),sp
+  jp (hl)
+setupRAMdata:
+;not speed critical
+  ld de,8100h
+  ld hl,RAMCodeStart
+  ld bc,RAMCodeEnd-RAMCodeStart
+  ldir
+  ret
