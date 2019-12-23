@@ -18,6 +18,7 @@ DCSErr:
   ld de,StrDCS
   jp CustomError
 
+err_internal_fatal:
 err_too_many_args:
 err_too_many_params:
 err_operand_stack_overflow:
