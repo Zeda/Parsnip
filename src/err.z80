@@ -1,91 +1,89 @@
-#ifdef SHELL_BROKEN
-GramErr:
-  ld de,StrGram
-  jp CustomError
-#endif
-MOSIONErr:
-  inc hl \ ld a,(hl) \ cp $30 \ jr nz,MirageErr
-  ld de,StrION
-  jp CustomError
-MirageErr:
-  dec a \ jp nz,HomeRunASM
-  ld de,StrMirage
-  jp CustomError
-DCSErr:
-  rlca
-  cp (hl) \ jp nz,HomeRunASM
-  inc hl \ ld a,(hl) \ cp $C9 \ jp nz,HomeRunASM
-  ld de,StrDCS
-  jp CustomError
+err_label_not_found:
+  ld a,12
+  jr Err
 
-err_internal_fatal:
-err_too_many_args:
-err_too_many_params:
+err_heap_overflow:
+  ld a,11
+  jr Err
+
 err_operand_stack_overflow:
 err_operand_stack_overflow_pop:
-err_bad_type:
-err_label_not_found:
-err_syntax:
-err_fatal:
-err_heap_overflow:
+  ld a,10
+  jr Err
+
+err_too_many_args:
+err_too_many_params:
+  ld a,9
+  jr Err
 
 err_too_few_args:
 err_missing_parameter:
+  ld a,8
+  jr Err
 err_could_not_convert:
-ErrStackOverflow_pop:
-  ld hl,s_StackOverflow_pop
+err_bad_type:
+  ld a,7
+  jr Err
+err_syntax:
   ld a,6
-  jr custerrd
-ErrStackOverflow_push:
-  ld hl,s_StackOverflow_push
+  jr Err
+ErrStackOverflow_pop:
   ld a,5
-  jr custerrd
-ErrPkgNotFound:
-  ld hl,s_PkgNotFound
+  jr Err
+ErrStackOverflow_push:
   ld a,4
-custerrd:
-  ld de,appErr1
-  call mov13
-  jr err
+  jr Err
 ErrBadToken:
   ld a,3
   jr Err
 ONErr:
-  xor a
-  .db $C2 ;start of jp nz,**
+  ld a,2
+  jr Err
 ErrMEM:
   ld a,1
+  .db $FE
+err_fatal:
+err_internal_fatal:
+  xor a
 Err:
-  ld (cxErrorEP),a
-  jp ErrorJump
-GramHandl:
-  ld hl,(ErrorLoc)
-  ld (parsePtr),hl
-  cp errmap_end-errmap \ jr nc,BreakProgram
-  ld hl,errmap
+  ld hl,error_LUT
+  add a,a
+  cp error_LUT_end-error_LUT
+  jr c,+_
+  xor a
+_:
   add a,l
   ld l,a
-#if (errmap&255)>251
-  jr nc,+_
+  jr nc,$+3
   inc h
-_:
-#endif
   ld a,(hl)
-  .db $FE  ;start of cp *s
+  inc hl
+  ld h,(hl)
+  ld l,a
+
+CustomError:
+  ld de,appErr1
+  call mov13
+  ld a,43
+  .db $FE  ;start of cp *
 StopToken:
 BreakProgram:
   xor a
   push af
+
 ;Reset the keypress
 _:
   call GetKeyDebounce
   or a
   jr nz,-_
+
 ;Reset the link port
   out (0),a
+
 ;Reset the OS keypress
   ld (843Fh),a
   ld (8444h),a
+
 ;Reset textShadow and cmdShadow
 	bcall(_clrTxtShd)
   bcall(_saveCmdShadow)
@@ -109,15 +107,54 @@ _:
 _:
   or 1
   ret
-errmap:
-  .db 6,14,43,36,43,43,43
-errmap_end:
+
+
+error_LUT:
+  .dw s_err_fatal
+  .dw s_err_mem
+  .dw s_err_ON
+  .dw s_err_BadToken
+  .dw s_err_stack_overflow_push
+  .dw s_err_stack_overflow_pop
+  .dw s_err_syntax
+  .dw s_err_bad_type
+  .dw s_err_missing_args
+  .dw s_err_too_many_args
+  .dw s_err_stackoverflow_operands
+  .dw s_err_heap_overflow
+  .dw s_err_label_not_found
+  ; .dw s_err_
+  ; .dw s_err_
+  ; .dw s_err_
+  ; .dw s_err_
+  ; .dw s_err_
+error_LUT_end:
 
 
 
-;The following are errors thrown outside of parsing.
-;Ex., during compiling, or loading a source file from archive
 
-err_LowMem:
-;Need to actually show to the user
-  ret
+
+s_err_fatal:
+  .db "Fatal",0
+s_err_mem:
+  .db "Mem",0
+s_err_ON:
+  .db "Break",0
+s_err_BadToken:
+  .db "Bad Token",0
+s_err_stack_overflow_push:
+s_err_stack_overflow_pop:
+s_err_stackoverflow_operands:
+  .db "StackOverflw",0
+s_err_syntax:
+  .db "Syntax",0
+s_err_bad_type:
+  .db "Bad Type",0
+s_err_missing_args:
+  .db "Missing Args",0
+s_err_too_many_args:
+  .db "TooManyArgs",0
+s_err_heap_overflow:
+  .db "HeapOverflow",0
+s_err_label_not_found:
+  .db "LblNotFound",0
