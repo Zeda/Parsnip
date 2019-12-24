@@ -37,7 +37,7 @@ mul_single:
   call DE_Times_BC
   ld a,d
   or e
-  jp nz,pushoperand_ui32_DEHL
+  jp nz,pushoperand_ui32
   jp pushoperand_ui16_HL
 
 mul_xfloat:
