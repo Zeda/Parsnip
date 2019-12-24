@@ -1,0 +1,41 @@
+eval_lt_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw lt_ui8
+  .dw lt_ui16
+  .dw lt_ui32
+  .dw lt_fixed88
+  .dw lt_fixed1616
+  .dw lt_var
+  .dw lt_true
+  .dw lt_false
+  .dw lt_tstr_ref
+  .dw lt_raw
+  .dw lt_str
+  .dw lt_str_ref
+  .dw lt_single
+  .dw lt_xfloat
+_:
+
+
+lt_ui8:
+lt_ui16:
+lt_ui32:
+lt_fixed88:
+lt_fixed1616:
+lt_var:
+lt_true:
+lt_false:
+lt_tstr_ref:
+lt_raw:
+lt_str:
+lt_str_ref:
+lt_single:
+  call pop2operand_ui16
+  or a
+  sbc hl,de
+  jp pushoperand_bool_c
+lt_xfloat:
+  call pop2operand_xfloat
+  call xcmp_p0
+  jp pushoperand_bool_c

@@ -339,6 +339,11 @@ exec_disp:
 exec_fix:
 exec_sto:
 exec_eq:
+exec_neq:
+exec_le:
+exec_ge:
+exec_lt:
+exec_gt:
 exec_add:
 exec_sub:
 exec_mul:
@@ -496,6 +501,11 @@ precedenceLUT:
   .db 0,255   ;highest precedence
   .db $2B,-3  ;comma
   .db $6A,30  ;=
+  .db $6F,30  ;!=
+  .db $6B,32  ;<
+  .db $6C,32  ;>
+  .db $6D,32  ;<=
+  .db $6E,32  ;>=
   .db $B0,41  ;(-)
   .db $83,48  ;division
   .db $82,49  ;multiplication
@@ -1026,13 +1036,7 @@ exec_var_index:
   inc hl
   ld (parsePtr),hl
   ;Need to push the var to the
-
-eval_eq:
-  call pop2operand_ui16
-  or a
-  sbc hl,de
-  jp pushoperand_bool_z
-
+  ret
 
 get_var_type:
   dec hl
@@ -1094,6 +1098,30 @@ _:
 
   jp err_syntax
 
+
+eval_eq:
+  ld hl,eval_eq_LUT
+  jp mathop
+
+eval_neq:
+  ld hl,eval_neq_LUT
+  jp mathop
+
+eval_gt:
+  ld hl,eval_gt_LUT
+  jp mathop
+
+eval_lt:
+  ld hl,eval_lt_LUT
+  jp mathop
+
+eval_ge:
+  ld hl,eval_ge_LUT
+  jp mathop
+
+eval_le:
+  ld hl,eval_le_LUT
+  jp mathop
 
 eval_add:
   ld hl,eval_add_LUT
@@ -1810,6 +1838,17 @@ pushoperand_var:
   ld (operandstack_ptr),hl
   ret
 
+pushoperand_bool_c:
+  ccf
+pushoperand_bool_nc:
+  ld a,type_true
+  adc a,0
+  jr +_
+pushoperand_bool_nz:
+  ld a,type_true
+  jr nz,+_
+  inc a
+  jr +_
 pushoperand_bool_z:
   ld a,type_true
   jr z,+_
@@ -2359,12 +2398,23 @@ xsub_p0:
   ld (next_page_call_address),ix
   jp next_page_call
 
+xcmp_p0:
+  ld bc,xcmp
+  ld (next_page_call_address),bc
+  jp next_page_call
+
 
 #include "ops/add.z80"
 #include "ops/sub.z80"
 #include "ops/mul.z80"
 #include "ops/div.z80"
 #include "ops/sto.z80"
+#include "ops/eq.z80"
+#include "ops/neq.z80"
+#include "ops/le.z80"
+#include "ops/ge.z80"
+#include "ops/lt.z80"
+#include "ops/gt.z80"
 #include "convert/to_xfloat.z80"
 #include "convert/to_single.z80"
 

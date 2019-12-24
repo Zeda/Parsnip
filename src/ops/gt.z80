@@ -1,0 +1,43 @@
+eval_gt_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw gt_ui8
+  .dw gt_ui16
+  .dw gt_ui32
+  .dw gt_fixed88
+  .dw gt_fixed1616
+  .dw gt_var
+  .dw gt_true
+  .dw gt_false
+  .dw gt_tstr_ref
+  .dw gt_raw
+  .dw gt_str
+  .dw gt_str_ref
+  .dw gt_single
+  .dw gt_xfloat
+_:
+
+
+gt_ui8:
+gt_ui16:
+gt_ui32:
+gt_fixed88:
+gt_fixed1616:
+gt_var:
+gt_true:
+gt_false:
+gt_tstr_ref:
+gt_raw:
+gt_str:
+gt_str_ref:
+gt_single:
+  call pop2operand_ui16
+  ex de,hl
+  or a
+  sbc hl,de
+  jp pushoperand_bool_c
+gt_xfloat:
+  call pop2operand_xfloat
+  ex de,hl
+  call xcmp_p0
+  jp pushoperand_bool_c

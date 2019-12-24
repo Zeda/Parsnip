@@ -1,0 +1,41 @@
+eval_eq_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw eq_ui8
+  .dw eq_ui16
+  .dw eq_ui32
+  .dw eq_fixed88
+  .dw eq_fixed1616
+  .dw eq_var
+  .dw eq_true
+  .dw eq_false
+  .dw eq_tstr_ref
+  .dw eq_raw
+  .dw eq_str
+  .dw eq_str_ref
+  .dw eq_single
+  .dw eq_xfloat
+_:
+
+
+eq_ui8:
+eq_ui16:
+eq_ui32:
+eq_fixed88:
+eq_fixed1616:
+eq_var:
+eq_true:
+eq_false:
+eq_tstr_ref:
+eq_raw:
+eq_str:
+eq_str_ref:
+eq_single:
+  call pop2operand_ui16
+  or a
+  sbc hl,de
+  jp pushoperand_bool_z
+eq_xfloat:
+  call pop2operand_xfloat
+  call xcmp_p0
+  jp pushoperand_bool_z

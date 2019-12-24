@@ -1,0 +1,41 @@
+eval_ge_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw ge_ui8
+  .dw ge_ui16
+  .dw ge_ui32
+  .dw ge_fixed88
+  .dw ge_fixed1616
+  .dw ge_var
+  .dw ge_true
+  .dw ge_false
+  .dw ge_tstr_ref
+  .dw ge_raw
+  .dw ge_str
+  .dw ge_str_ref
+  .dw ge_single
+  .dw ge_xfloat
+_:
+
+
+ge_ui8:
+ge_ui16:
+ge_ui32:
+ge_fixed88:
+ge_fixed1616:
+ge_var:
+ge_true:
+ge_false:
+ge_tstr_ref:
+ge_raw:
+ge_str:
+ge_str_ref:
+ge_single:
+  call pop2operand_ui16
+  or a
+  sbc hl,de
+  jp pushoperand_bool_nc
+ge_xfloat:
+  call pop2operand_xfloat
+  call xcmp_p0
+  jp pushoperand_bool_nc

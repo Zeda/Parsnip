@@ -1,0 +1,41 @@
+eval_neq_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw neq_ui8
+  .dw neq_ui16
+  .dw neq_ui32
+  .dw neq_fixed88
+  .dw neq_fixed1616
+  .dw neq_var
+  .dw neq_true
+  .dw neq_false
+  .dw neq_tstr_ref
+  .dw neq_raw
+  .dw neq_str
+  .dw neq_str_ref
+  .dw neq_single
+  .dw neq_xfloat
+_:
+
+
+neq_ui8:
+neq_ui16:
+neq_ui32:
+neq_fixed88:
+neq_fixed1616:
+neq_var:
+neq_true:
+neq_false:
+neq_tstr_ref:
+neq_raw:
+neq_str:
+neq_str_ref:
+neq_single:
+  call pop2operand_ui16
+  or a
+  sbc hl,de
+  jp pushoperand_bool_nz
+neq_xfloat:
+  call pop2operand_xfloat
+  call xcmp_p0
+  jp pushoperand_bool_nz

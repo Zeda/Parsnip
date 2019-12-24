@@ -1,0 +1,43 @@
+eval_le_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw le_ui8
+  .dw le_ui16
+  .dw le_ui32
+  .dw le_fixed88
+  .dw le_fixed1616
+  .dw le_var
+  .dw le_true
+  .dw le_false
+  .dw le_tstr_ref
+  .dw le_raw
+  .dw le_str
+  .dw le_str_ref
+  .dw le_single
+  .dw le_xfloat
+_:
+
+
+le_ui8:
+le_ui16:
+le_ui32:
+le_fixed88:
+le_fixed1616:
+le_var:
+le_true:
+le_false:
+le_tstr_ref:
+le_raw:
+le_str:
+le_str_ref:
+le_single:
+  call pop2operand_ui16
+  ex de,hl
+  or a
+  sbc hl,de
+  jp pushoperand_bool_nc
+le_xfloat:
+  call pop2operand_xfloat
+  ex de,hl
+  call xcmp_p0
+  jp pushoperand_bool_nc
