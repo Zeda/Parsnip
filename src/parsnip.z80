@@ -539,14 +539,19 @@ type_size_LUT_end:
 exec_num:
   ex de,hl
   dec de
-  call atoui16
+  call atoui32
 
   ;make sure it isn't supposed to be a float!
   jr z,+_
+  ;HLIX
+  ld (parsePtr),de
+  push ix
+  pop de
+  ld a,h
+  or l
+  jp z,pushoperand_ui16
   ex de,hl
-  ld (parsePtr),hl
-  jp pushoperand_ui16
-
+  jp pushoperand_ui32
 _:
   ;If it got this far, we actually have a float or a fixed-point number
   ;BC points to the number
@@ -788,46 +793,6 @@ eval_pixel:
 #include "gfx/GetPixelLoc.z80"
 
 
-popoperand_bool:
-;pops a boolean into the zero flag, z means false, nz means true
-
-  ld hl,(operandstack_ptr)
-  dec hl
-  ld a,(hl)
-  cp type_ui16
-  jr z,+_
-
-  sub type_true
-  cp 1
-  jr z,popbool_end
-  jr c,popbool_end
-  jp err_bad_type
-
-_:
-  dec hl
-  ld a,(hl)
-  dec hl
-  or (hl)
-  add a,255
-  jr nc,popbool_end
-  xor a
-popbool_end:
-  ld (operandstack_ptr),hl
-  ret
-
-popoperand_sprite:
-  jp popoperand_raw
-
-popoperand_coord:
-;returns BC as the coord
-  call pop2operand_ui16
-  ld b,e
-  ld c,l
-  ret
-
-popoperand_buf:
-  jp popoperand_ui16
-
 eval_if:
   call popoperand_bool
   jp nz,pop_end_of_params
@@ -921,44 +886,6 @@ eval_sto:
   call pop_operand
   ld hl,eval_sto_LUT
   jp jumptableindex
-
-
-
-popoperand_raw:
-;Returns HL pointing to the data
-;        BC is the size of the data
-  ld hl,(operandstack_ptr)
-  dec hl
-  ld a,(hl)
-  cp type_var
-  jr z,popraw_var
-  cp type_raw
-  jp nz,err_bad_type
-
-popraw_var:
-  dec hl
-  ld a,(hl)
-  ld (operandstack_ptr),hl
-  sub 'A'
-  add a,a
-  ld hl,pvars
-  add a,l
-  ld l,a
-  jr nc,$+3
-  inc h
-  ld a,(hl)
-  inc hl
-  ld h,(hl)
-  ld l,a
-  ld a,(hl)
-  cp type_raw
-  jp nz,err_bad_type
-  inc hl
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
-  ret
 
 alloc:
 ;Inputs:
@@ -1297,23 +1224,6 @@ variable_size:
   ld a,(hl)
   ret
 
-pop2operand_ui16:
-  call popoperand_ui16
-  push de
-  call popoperand_ui16
-  ex de,hl
-  pop de
-  ret
-
-popoperand_str:
-;Returns HL pointing to the data
-;        BC is the size of the data
-  ld hl,to_str_LUT
-  jp pop_to
-
-
-
-
 tokstr2ascii:
   ld a,e
   cp OP3&255
@@ -1400,6 +1310,74 @@ popoperand_fixed88:
 popoperand_fixed1616:
   ld hl,to_fixed1616_LUT
   jp pop_to
+
+pop2operand_ui16:
+  call popoperand_ui16
+  push de
+  call popoperand_ui16
+  ex de,hl
+  pop de
+  ret
+
+popoperand_str:
+;Returns HL pointing to the data
+;        BC is the size of the data
+  ld hl,to_str_LUT
+  jp pop_to
+
+popoperand_bool:
+;pops a boolean into the zero flag, z means false, nz means true
+  ld hl,to_bool_LUT
+  jp pop_to
+
+popoperand_sprite:
+  jp popoperand_raw
+
+popoperand_buf:
+  jp popoperand_ui16
+
+popoperand_coord:
+;returns BC as the coord
+  call pop2operand_ui16
+  ld b,e
+  ld c,l
+  ret
+
+popoperand_raw:
+;Returns HL pointing to the data
+;        BC is the size of the data
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_var
+  jr z,popraw_var
+  cp type_raw
+  jp nz,err_bad_type
+
+popraw_var:
+  dec hl
+  ld a,(hl)
+  ld (operandstack_ptr),hl
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ld a,(hl)
+  cp type_raw
+  jp nz,err_bad_type
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
 
 pop_to:
   push hl
@@ -1574,36 +1552,6 @@ pushoperand_ui8:
   ld (operandstack_ptr),hl
   ret
 
-pushoperand_fixed1616:
-;pushes DE.BC to the operand stack
-  push de
-#ifdef STACK_SAFE
-  ld de,(operandstack_ptr)
-  inc de
-  inc de
-  inc de
-  inc de
-  ld hl,(operandstack_top)
-  scf
-  sbc hl,de
-  jp c,err_operand_stack_overflow
-#endif
-  ld hl,(operandstack_ptr)
-  ld (hl),c
-  inc hl
-  ld (hl),b
-  inc hl
-  pop bc
-  ld (hl),c
-  inc hl
-  ld (hl),b
-  inc hl
-  ld (hl),type_fixed1616
-  inc hl
-  ld (operandstack_ptr),hl
-  ret
-
-
 exec_quote:
 ;Gonna push a string-by-reference to the stack
   push hl
@@ -1643,10 +1591,13 @@ pushoperand_ref:
   ret
 
 
-pushoperand_ui32_DEHL:
+pushoperand_fixed1616:
+  ld a,type_fixed1616
+  jr +_
 pushoperand_ui32:
 ;pushes DEHL to the operand stack
-
+  ld a,type_ui32
+_:
   push de
   ex de,hl
 #ifdef STACK_SAFE
@@ -1670,47 +1621,10 @@ pushoperand_ui32:
   inc hl
   ld (hl),d
   inc hl
-  ld (hl),type_ui32
+  ld (hl),a
   inc hl
   ld (operandstack_ptr),hl
   ret
-
-atoui16:
-;===============================================================
-;Input:
-;     DE points to the base 10 number string in RAM.
-;Outputs:
-;     HL is the 16-bit value of the number
-;     DE points to the byte after the number
-;     BC points to the start of the number
-;     z flag means it ended on a decimal point.
-;Destroys:
-;     A (actually, add 30h and you get the ending token)
-;     BC
-;===============================================================
-  ld hl,0
-  push de   ;save the pointer
-  jr atoui16_start
-_:
-  inc de
-  ld b,h
-  ld c,l
-  add hl,hl
-  add hl,hl
-  add hl,bc
-  add hl,hl
-  add a,l
-  ld l,a
-  jr nc,atoui16_start
-  inc h
-atoui16_start:
-  ld a,(de)
-  sub 30h
-  cp 10
-  jr c,-_
-  pop bc
-  ret
-
 
 GetKeyDebounce:
   ei
@@ -2030,6 +1944,7 @@ DrawRectToGraph:
 #include "subroutines/diRestore.z80"
 #include "subroutines/CheckStatus.z80"
 #include "subroutines/itoa_16.z80"
+#include "subroutines/atoui32.z80"
 #include "subroutines/util.z80"
 #include "subroutines/searchlabel.z80"
 #include "parsnipdata.z80"
@@ -2123,6 +2038,7 @@ single2str_p0:
 #include "convert/to_fixed88.z80"
 #include "convert/to_fixed1616.z80"
 #include "convert/to_str.z80"
+#include "convert/to_bool.z80"
 
 #include "commandtable.z80"
 .echo "Page 0: ",$8000-$," bytes remaining"
