@@ -20,12 +20,48 @@ _:
 
 add_ui8:
 add_ui16:
-add_ui32:
-add_fixed88:
-add_fixed1616:
-add_var:
 add_true:
 add_false:
+  call pop2operand_ui16
+  add hl,de
+  jp pushoperand_ui16_HL
+
+add_ui32:
+  call popoperand_ui32
+  push de
+  push hl
+  call popoperand_ui32
+  pop bc
+  add hl,bc
+  ex de,hl
+  pop bc
+  adc hl,bc
+  ex de,hl
+  jp pushoperand_ui32
+
+add_fixed88:
+  call popoperand_fixed88
+  push de
+  call popoperand_fixed88
+  pop hl
+  add hl,de
+  ex de,hl
+  jp pushoperand_fixed88
+
+add_fixed1616:
+  call popoperand_fixed1616
+  push de
+  push hl
+  call popoperand_fixed1616
+  pop bc
+  add hl,bc
+  ex de,hl
+  pop bc
+  adc hl,bc
+  ex de,hl
+  jp pushoperand_fixed1616
+
+add_var:
   call pop2operand_ui16
   add hl,de
   jp pushoperand_ui16_HL
