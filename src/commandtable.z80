@@ -176,13 +176,13 @@ CommandJumpTable:
 .dw ErrBadToken    ; A8
 .dw ErrBadToken    ; A9
 .dw ErrBadToken    ; AA
-.dw ErrBadToken    ; AB
+.dw exec_rand      ; AB
 .dw ErrBadToken    ; AC
 .dw ErrBadToken    ; AD
 .dw ErrBadToken    ; AE
 .dw ErrBadToken    ; AF
 .dw exec_neg       ; B0
-.dw ErrBadToken    ; B1
+.dw exec_int       ; B1
 .dw ErrBadToken    ; B2
 .dw exec_raw       ; B3
 .dw ErrBadToken    ; B4
@@ -441,7 +441,7 @@ evalLUT:
 .dw ErrBadToken    ; AE
 .dw ErrBadToken    ; AF
 .dw eval_neg       ; B0
-.dw ErrBadToken    ; B1
+.dw eval_int       ; B1
 .dw ErrBadToken    ; B2
 .dw eval_raw       ; B3
 .dw ErrBadToken    ; B4

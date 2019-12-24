@@ -334,6 +334,7 @@ exec_pixelon:
 exec_pixeloff:
 exec_pixeltoggle:
 exec_pixeltest:
+exec_int:
 exec_pause:
 exec_disp:
 exec_fix:
@@ -584,6 +585,11 @@ pushoperand_xfloat:
   ld (operandstack_ptr),hl
   ret
 
+exec_rand:
+  ld bc,xOP1
+  call xrand_p0
+  jp pushoperand_xfloat
+
 eval_dispgraph:
 ;might have 0 or 1 argument
 ;assume 0 for now
@@ -631,6 +637,13 @@ _:
   or a
   jr nz,-_
   ret
+
+eval_int:
+  call popoperand_ui16
+  push de
+  call pop_end_of_params
+  pop de
+  jp pushoperand_ui16
 
 eval_fix:
   call popoperand_ui8
@@ -730,14 +743,14 @@ eval_putsprite:
 
 eval_pixelon:
   call eval_pixel
-  ret nc
+  jp nc,pop_end_of_params
   or (hl)
   ld (hl),a
   jp pop_end_of_params
 
 eval_pixeloff:
   call eval_pixel
-  ret nc
+  jp nc,pop_end_of_params
   cpl
   and (hl)
   ld (hl),a
@@ -745,7 +758,7 @@ eval_pixeloff:
 
 eval_pixeltoggle:
   call eval_pixel
-  ret nc
+  jp nc,pop_end_of_params
   xor (hl)
   ld (hl),a
   jp pop_end_of_params
@@ -1012,11 +1025,34 @@ eval_var:
   push bc
   ex de,hl
   jp pushoperand_ref
+
 eval_var_ui16:
   ld e,(hl)
   inc hl
   ld d,(hl)
   jp pushoperand_ui16
+
+getvar_ui16:
+  sub 'A'
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+;HL points to the var data
+  ld a,(hl)
+  inc hl
+  cp type_ui16
+  jp nz,err_syntax
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ret
 
 
 exec_var:
@@ -1613,61 +1649,6 @@ _:
   ld (operandstack_ptr),hl
   ret
 
-popoperand_ui16:
-;pops a uint16 into DE from the operand stack
-  ld hl,(operandstack_ptr)
-  dec hl
-  ld a,(hl)
-  cp type_ui16
-  jr z,+_
-  cp type_true
-  jr z,popui16_1
-  cp type_false
-  jr z,popui16_0
-  cp type_var
-  jp nz,err_bad_type
-  dec hl
-  ld a,(hl)
-  ld (operandstack_ptr),hl
-getvar_ui16:
-  sub 'A'
-  add a,a
-  ld hl,pvars
-  add a,l
-  ld l,a
-  jr nc,$+3
-  inc h
-  ld e,(hl)
-  inc hl
-  ld d,(hl)
-  ex de,hl
-;HL points to the var data
-  ld a,(hl)
-  inc hl
-  cp type_ui16
-  jp nz,err_syntax
-  ld e,(hl)
-  inc hl
-  ld d,(hl)
-  ret
-
-_:
-#endif
-  dec hl
-  ld d,(hl)
-  dec hl
-  ld e,(hl)
-_:
-  ld (operandstack_ptr),hl
-  ret
-popui16_1:
-  ld de,1
-  jr -_
-popui16_0:
-  ld de,0
-  jr -_
-
-
 pop2operand_xfloat:
   call popoperand_xfloat
   ;move it to xOP3
@@ -1685,6 +1666,10 @@ popoperand_xfloat:
 
 popoperand_single:
   ld hl,to_single_LUT
+  jp pop_to
+
+popoperand_ui16:
+  ld hl,to_ui16_LUT
   jp pop_to
 
 pop_to:
@@ -2378,6 +2363,12 @@ xtostr_p0:
   ld (next_page_call_address),de
   jp next_page_call
 
+xrand_p0:
+  ld ix,xrand
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+
 xmul_p0:
   ld ix,xmul
   ld (next_page_call_address),ix
@@ -2417,6 +2408,7 @@ xcmp_p0:
 #include "ops/gt.z80"
 #include "convert/to_xfloat.z80"
 #include "convert/to_single.z80"
+#include "convert/to_ui16.z80"
 
 #include "commandtable.z80"
 .echo "Page 0: ",$8000-$," bytes remaining"

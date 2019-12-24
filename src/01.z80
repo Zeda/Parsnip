@@ -8,6 +8,7 @@
 #include "xtostr.z80"
 #include "xln.z80"
 #include "xcmp.z80"
+#include "xrand.z80"
 
 
 #include "absSingle.z80"

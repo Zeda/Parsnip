@@ -16,18 +16,47 @@ to_ui16_LUT:
   .dw xfloat_convert_to_ui16
 _:
 
-ui8_convert_to_ui16:
-ui16_convert_to_ui16:
-ui32_convert_to_ui16:
 fixed88_convert_to_ui16:
+  inc de
+ui8_convert_to_ui16:
+;DE points to the data
+;return in DE
+  ld a,(de)
+  ld e,a
+  ld d,0
+  ret
+
 fixed1616_convert_to_ui16:
-var_convert_to_ui16:
+  inc de
+  inc de
+ui32_convert_to_ui16:
+ui16_convert_to_ui16:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ret
+
 true_convert_to_ui16:
+  ld de,1
+  ret
+
 false_convert_to_ui16:
+  ld de,0
+  ret
+
+var_convert_to_ui16:
 tstr_ref_convert_to_ui16:
 raw_convert_to_ui16:
 str_convert_to_ui16:
 str_ref_convert_to_ui16:
 single_convert_to_ui16:
-xfloat_convert_to_ui16:
   jp err_syntax
+
+xfloat_convert_to_ui16:
+  ex de,hl
+  call x_to_int16
+  ex de,hl
+  ret
+
+#include "conversion/x_to_int16.z80"
