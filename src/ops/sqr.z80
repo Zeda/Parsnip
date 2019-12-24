@@ -1,46 +1,49 @@
-eval_mul_LUT:
+eval_sqr_LUT:
   .db (+_-$-1)/2
   .dw err_syntax      ;should not have run out of args!
-  .dw mul_ui8
-  .dw mul_ui16
-  .dw mul_ui32
-  .dw mul_fixed88
-  .dw mul_fixed1616
-  .dw mul_var
-  .dw mul_true
-  .dw mul_false
-  .dw mul_tstr_ref
-  .dw mul_raw
-  .dw mul_str
-  .dw mul_str_ref
-  .dw mul_single
-  .dw mul_xfloat
+  .dw sqr_ui8
+  .dw sqr_ui16
+  .dw sqr_ui32
+  .dw sqr_fixed88
+  .dw sqr_fixed1616
+  .dw sqr_var
+  .dw sqr_true
+  .dw sqr_false
+  .dw sqr_tstr_ref
+  .dw sqr_raw
+  .dw sqr_str
+  .dw sqr_str_ref
+  .dw sqr_single
+  .dw sqr_xfloat
 _:
 
 
-mul_ui8:
-mul_ui16:
-mul_ui32:
-mul_fixed88:
-mul_fixed1616:
-mul_var:
-mul_true:
-mul_false:
-mul_tstr_ref:
-mul_raw:
-mul_str:
-mul_str_ref:
-  call pop2operand_ui16
-  ld b,h
-  ld c,l
+sqr_ui8:
+sqr_ui16:
+sqr_ui32:
+sqr_fixed88:
+sqr_fixed1616:
+sqr_var:
+sqr_true:
+sqr_false:
+sqr_tstr_ref:
+sqr_raw:
+sqr_str:
+sqr_str_ref:
+  call popoperand_ui16
+  ld b,d
+  ld c,e
   call DE_Times_BC
   ld a,d
   or e
   jp nz,pushoperand_ui32
   jp pushoperand_ui16_HL
 
-mul_single:
-  call pop2operand_single
+sqr_single:
+  call popoperand_single
+  ld d,h
+  ld e,l
+  ld bc,(operandstack_ptr)
   call mulSingle_p0
 ;WARNING: This routine assumes there is enough space on the operand stack!
   ld hl,4
@@ -50,8 +53,11 @@ mul_single:
   ld (operandstack_ptr),hl
   ret
 
-mul_xfloat:
-  call pop2operand_xfloat
+sqr_xfloat:
+  call popoperand_xfloat
+  ld d,h
+  ld e,l
+  ld bc,(operandstack_ptr)
   call xmul_p0
 ;WARNING: This routine assumes there is enough space on the operand stack!
 ;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10

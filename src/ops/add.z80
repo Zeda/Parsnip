@@ -61,11 +61,6 @@ add_fixed1616:
   ex de,hl
   jp pushoperand_fixed1616
 
-add_var:
-  call pop2operand_ui16
-  add hl,de
-  jp pushoperand_ui16_HL
-
 add_tstr_ref:
 add_str:
 add_str_ref:
@@ -122,9 +117,20 @@ add_str_ref:
   ld a,type_str_ref
   jp pushoperand_ref
 
-add_single:
 add_raw:
+add_var:
   jp err_syntax
+
+add_single:
+  call pop2operand_single
+  call addSingle_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,4
+  add hl,bc
+  ld (hl),type_single
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
 
 add_xfloat:
   call pop2operand_xfloat

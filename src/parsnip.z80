@@ -287,6 +287,17 @@ seek_EOL:
   ld (parsePtr),hl
   ret
 
+exec_sqr:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  ld c,a
+  cp type_var
+  call z,peekvar
+  ld a,c
+  ld hl,eval_sqr_LUT
+  jp jumptableindex
+
 exec_repeat:
 ; Need to push HL to the operator stack, this points to the expression
 ; need to push the repeat token to the operator stack
@@ -1283,6 +1294,16 @@ pop2operand_xfloat:
   ld bc,(operandstack_ptr)
   ret
 
+pop2operand_single:
+  call popoperand_single
+  ;move it to xOP3
+  ld de,xOP3
+  call mov4_p0
+  call popoperand_single
+  ld de,xOP3
+  ld bc,(operandstack_ptr)
+  ret
+
 popoperand_xfloat:
   ld hl,to_xfloat_LUT
   jp pop_to
@@ -1514,7 +1535,6 @@ pushoperand_ui16:
 #ifdef STACK_SAFE
   ld a,type_ui16
 pushoperand_2byte:
-  push af
   ld bc,(operandstack_ptr)
   inc bc
   inc bc
@@ -1528,7 +1548,6 @@ pushoperand_2byte:
   inc hl
   ld (hl),d
   inc hl
-  pop af
   ld (hl),a
   inc hl
   ld (operandstack_ptr),hl
@@ -2012,6 +2031,26 @@ negSingle_p0:
   ld (next_page_call_address),bc
   jp next_page_call
 
+addSingle_p0:
+  ld bc,addSingle
+  ld (next_page_call_address),bc
+  jp next_page_call
+
+subSingle_p0:
+  ld bc,subSingle
+  ld (next_page_call_address),bc
+  jp next_page_call
+
+mulSingle_p0:
+  ld bc,mulSingle
+  ld (next_page_call_address),bc
+  jp next_page_call
+
+divSingle_p0:
+  ld bc,divSingle
+  ld (next_page_call_address),bc
+  jp next_page_call
+
 single2str_p0:
   ld bc,single2str
   ld (next_page_call_address),bc
@@ -2030,6 +2069,7 @@ single2str_p0:
 #include "ops/lt.z80"
 #include "ops/gt.z80"
 #include "ops/neg.z80"
+#include "ops/sqr.z80"
 #include "convert/to_xfloat.z80"
 #include "convert/to_single.z80"
 #include "convert/to_ui8.z80"

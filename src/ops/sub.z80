@@ -30,11 +30,21 @@ sub_tstr_ref:
 sub_raw:
 sub_str:
 sub_str_ref:
-sub_single:
   call pop2operand_ui16
   or a
   sbc hl,de
   jp pushoperand_ui16_HL
+
+sub_single:
+  call pop2operand_single
+  call subSingle_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,4
+  add hl,bc
+  ld (hl),type_single
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
 
 sub_xfloat:
   call pop2operand_xfloat

@@ -18,7 +18,7 @@ CommandJumpTable:
 .dw ErrBadToken    ; 0A
 .dw ErrBadToken    ; 0B
 .dw ErrBadToken    ; 0C
-.dw ErrBadToken    ; 0D
+.dw exec_sqr       ; 0D
 .dw ErrBadToken    ; 0E
 .dw ErrBadToken    ; 0F
 .dw exec_open_parens;10
