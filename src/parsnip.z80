@@ -70,12 +70,39 @@ SelectedProgOP1:
 _:
   ld a,(TempWord3)
   or a
-  jp z,ExecOP1
+  jr z,ExecOP1
 ;Here we need to move the code to RAM.
-;  We will perform some minor pre-compiling
-;  Currently it is just:
-;     Convert numbers to raw binary
-#include "precompile.z80"
+;Put the name in OP1
+  ld hl,GramTempName
+  rst rMov9ToOP1
+
+;Now we create the var
+  ld a,16h
+  ld hl,(TempWord4)
+  bcall(_CreateVar)
+  inc de
+  inc de
+
+;Copy the source to RAM
+;If size is 0, just exit.
+  ld bc,(TempWord4)
+  ld a,b
+  or c
+  jr nz,+_
+  pop hl
+  ret
+_:
+
+  ld hl,(TempWord5)
+  ld a,(TempWord3)
+  call nz,ReadArc
+
+;Now we copy the temp var's name back to OP1 and call it good :)
+  ld hl,OP4
+  rst rMov9ToOP1
+
+
+
 ExecOP1:
   ld hl,OP1
   ld de,basic_prog
@@ -1967,17 +1994,6 @@ atoui16_start:
   pop bc
   ret
 
-CustomError:
-  ld bc,12
-_:
-  ex de,hl
-  ld de,appErr1
-  ldir
-  xor a
-  ld (de),a
-  ld a,2
-HandleError:
-  jp GramHandl
 
 GetKeyDebounce:
   ei
@@ -2068,56 +2084,6 @@ CheckOnPress:
   call CheckStatus
   ret nz
   ld c,41
-  ret
-
-ErrorJump:
-  ; If we are currently parsing an errorthen we don't want to be stuck in an infinite loop !
-  bit errorChecking,(iy+InternalFlag)
-  ret nz
-  set errorChecking,(iy+InternalFlag)
-
-  push de
-  push hl
-  push bc
-  ld hl,(parsePtr)
-  ld (ErrorLoc),hl
-  ld hl,(parseError)
-  ld a,h
-  or l
-  ld a,(cxErrorEP)
-  call z,GramHandl
-  jr z,L5c05
-  ld c,a
-  ld b,0
-  ld de,(parsePtr)
-  ld (qmarkVar),de
-  ld (parsePtr),hl
-  ld hl,(ThetaPrimeVar)
-  push hl
-  ld hl,(Ans)
-  ld (Ans),bc
-  push hl
-  call ParserNext
-  ld a,(hl)
-  ld hl,(qmarkVar)
-  ld (parsePtr),hl
-  cp $11
-  jr nz,+_
-  pop hl
-  pop hl
-  pop hl
-  jr L5c06
-_:
-  pop hl
-  ld (Ans),hl
-  pop hl
-  ld (ThetaPrimeVar),hl
-L5c05:
-  pop bc
-L5c06:
-  pop hl
-  pop de
-  res errorChecking,(iy+InternalFlag)
   ret
 
 isStartMenu_valid:

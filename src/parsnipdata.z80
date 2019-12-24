@@ -5,15 +5,6 @@ sinTable:
 .db 118,119,121,122,122,123,124,125,126,126,127,127,127,128,128,128
 StrVersion:
  .db "Parsnip v0.1.0",0
-FrequencyLUT:
-.dw 2508,2367,2234,2109,1990,1879,1773,1674,1580,1491,1407,1328
-.dw 1254,1184,1117,1054,995,939,887,837,790,746,704,664
-.dw 627,592,559,527,498,470,443,418,395,373,352,332
-.dw 313,296,279,264,249,235,222,209,197,186,176,166
-.dw 157,148,140,132,124,117,111,105,99,93,88,83
-.dw 78,74,70,66,62,59,55,52,49,47,44,42
-.dw 39,37,35,33,31,29,28,26,25,23,22,21
-.dw 20,18,17,16,16,15,14,13,12,12,11,10
 
 ;===============================================================
 FontSet:
@@ -426,28 +417,11 @@ vFont:
 ;Char $100
 .db $67,0,0,0,0,0,0,0,0
 
-float_pi:     .db $DB,$0F,$49,$81
-float_e:      .db $54,$f8,$2d,$81
 GramTempName:
  .db 16h,"GramTemp"
 GVarData:
  .db 15h,"GVarData"
-StrMirage:
- .db "MirageOS prg",0
-StrION:
- .db "ION program",0
-StrDCS:
- .db "DCS program",0
-StrGram:
-  .db "Broken Shell",0
-s_PkgNotFound:
-  .db "PkgNotFound",0
-s_StackOverflow_pop:
-s_StackOverflow_push:
-  .db "StackOverflw",0
-#ifndef INCLUDE_GRAMPKG
-s_grampkg: .db 15h,"Grampkg",0
-#endif
+
 s_appv:    .db "appv",0
 s_prog:    .db "prgm"
 s_null:

@@ -102,8 +102,7 @@ TextPauseTime=appErr2         ;1
 GrayBufPtr  = TextPauseTime+1 ;2
 Ans         = GrayBufPtr+2    ;2
 OutputLogic = Ans+2           ;1
-ErrorLoc    = OutputLogic+1   ;2
-SPSave      = ErrorLoc+2      ;2
+SPSave      = OutputLogic+2   ;2
 
 BufPtr              = 84E7h
 
