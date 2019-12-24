@@ -1,0 +1,97 @@
+eval_neg_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw neg_ui8
+  .dw neg_ui16
+  .dw neg_ui32
+  .dw neg_fixed88
+  .dw neg_fixed1616
+  .dw neg_var
+  .dw neg_true
+  .dw neg_false
+  .dw neg_tstr_ref
+  .dw neg_raw
+  .dw neg_str
+  .dw neg_str_ref
+  .dw neg_single
+  .dw neg_xfloat
+_:
+
+neg_ui8:
+  call popoperand_ui8
+  neg
+  jp pushoperand_ui8
+
+neg_ui16:
+  call popoperand_ui16
+  xor a
+  sub e
+  ld e,a
+  sbc a,a
+  sub d
+  ld d,a
+  jp pushoperand_ui16
+
+neg_ui32:
+  call popoperand_ui32
+  xor a
+  ld c,a \ sbc a,l \ ld l,a
+  ld a,c \ sbc a,h \ ld h,a
+  ld c,a \ sbc a,e \ ld e,a
+  ld a,c \ sbc a,d \ ld d,a
+  jp pushoperand_ui32
+
+neg_fixed88:
+  call popoperand_fixed88
+  xor a
+  sub e
+  ld e,a
+  sbc a,a
+  sub d
+  ld d,a
+  jp pushoperand_fixed88
+
+neg_fixed1616:
+  call popoperand_fixed1616
+  xor a
+  ld c,a \ sbc a,l \ ld l,a
+  ld a,c \ sbc a,h \ ld h,a
+  ld c,a \ sbc a,e \ ld e,a
+  ld a,c \ sbc a,d \ ld d,a
+  jp pushoperand_fixed1616
+
+neg_true:
+neg_false:
+  ret
+
+neg_var:
+neg_tstr_ref:
+neg_str:
+neg_str_ref:
+neg_raw:
+  jp err_syntax
+
+
+neg_single:
+  call popoperand_single
+  ld bc,(operandstack_ptr)
+  call negSingle_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,4
+  add hl,bc
+  ld (hl),type_single
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+neg_xfloat:
+  call popoperand_xfloat
+  ld bc,(operandstack_ptr)
+  call xneg_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,10
+  add hl,bc
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret

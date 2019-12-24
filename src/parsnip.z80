@@ -923,21 +923,6 @@ eval_sto:
   jp jumptableindex
 
 
-popstrref_to_str:
-  dec hl  ;type
-  dec hl  ;size (unused)
-  dec hl  ;size (unused)
-  ld d,(hl)
-  dec hl
-  ld e,(hl)
-  ld (operandstack_ptr),hl
-  ex de,hl
-  inc hl
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
-  ret
 
 popoperand_raw:
 ;Returns HL pointing to the data
@@ -949,15 +934,7 @@ popoperand_raw:
   jr z,popraw_var
   cp type_raw
   jp nz,err_bad_type
-popstr_to_str:
-  dec hl
-  ld b,(hl)
-  dec hl
-  ld c,(hl)
-  or a
-  sbc hl,bc
-  ld (operandstack_ptr),hl
-  ret
+
 popraw_var:
   dec hl
   ld a,(hl)
@@ -1099,41 +1076,12 @@ eval_neg:
   ld hl,(operandstack_ptr)
   dec hl
   ld a,(hl)
-
-  cp type_true
-  ret z
-
-  cp type_false
-  ret z
-
-  cp type_ui16
-  jr nz,+_
-  ;if it is greater than 32767, we should graduate i32
-  ;otherwise, set it as i16
-  ;For now, not doing this.
-  xor a
-  dec hl
-  dec hl
-  sub (hl)
-  ld (hl),a
-  sbc a,a
-  inc hl
-  sub (hl)
-  ld (hl),a
-  ret
-_:
-
-  cp type_xfloat
-  jr nz,+_
-  dec hl
-  ld a,(hl)
-  xor $80
-  ld (hl),a
-  ret
-_:
-
-  jp err_syntax
-
+  ld c,a
+  cp type_var
+  call z,peekvar
+  ld a,c
+  ld hl,eval_neg_LUT
+  jp jumptableindex
 
 eval_eq:
   ld hl,eval_eq_LUT
@@ -1360,220 +1308,11 @@ pop2operand_ui16:
 popoperand_str:
 ;Returns HL pointing to the data
 ;        BC is the size of the data
-  ld hl,(operandstack_ptr)
-  ld de,(operandstack_bottom)
-  dec hl
-  ld a,(hl)
-  or a
-  jp z,err_missing_parameter
-  dec a
-  jr z,popui8_to_str
-  dec a
-  jp z,popui16_to_str
-  dec a
-  jp z,popui32_to_str
-  dec a
-  dec a
-  jp z,popfixed1616_to_str
-  dec a
-  jp z,popvar_to_str
-  dec a
-  jp z,poptrue_to_str
-  dec a
-  jp z,popfalse_to_str
-  dec a
-  jr z,poptstr_ref_to_str
-  dec a
-  dec a
-  jp z,popstr_to_str
-  dec a
-  jp z,popstrref_to_str
-  dec a
-  ; jp z,pop_single_to_str
-  dec a
-  jp z,pop_xfloat_to_str
-  ; dec a
-  ; jp z,pop__to_str
-
-  jp err_could_not_convert
-poptstr_ref_to_str:
-  ld hl,(operandstack_ptr)
-  dec hl
-  dec hl
-  ld b,(hl)
-  dec hl
-  ld c,(hl)
-  dec hl
-  ld d,(hl)
-  dec hl
-  ld e,(hl)
-  ld (operandstack_ptr),hl
-
-#ifdef STACK_SAFE
-  push de
-  ld de,(operandstack_bottom)
-  or a
-  sbc hl,de
-  pop de
-  jp c,err_operand_stack_overflow_pop
-#endif
-
-;DE points to the string
-;BC is the size of the existing string
-;For now, copy it to OP1
-  ld hl,OP1
-  ex de,hl
-  ld a,b
-  or c
-  jr nz,+_
-  ex de,hl
-  ld (hl),a
-  ret
-_:
-  call tokstr2ascii
-  ld hl,OP1
-
-  ret
-
-popui8_to_str:
-;first need to popoperand_uint8
-  call popoperand_ui8
-  ld hl,OP1
-#include "subroutines/uitoa_8.z80"
-
-
-poptrue_to_str:
-popfalse_to_str:
-  call popoperand_bool
-_:
-false_to_str:
-  ld hl,s_false
-  jr z,+_
-true_to_str:
-  ld hl,s_true
-_:
-  ld de,OP1
-  ld bc,6
-  ldir
-  ld hl,OP1
-  ret
-s_false:
-  .db "false",0
-s_true:
-  .db "true",0
-
-popui16_to_str:
-;first need to popoperand_uint8
-  call popoperand_ui16
-  ld hl,OP1
-#include "subroutines/uitoa_16.z80"
-
-popui32_to_str:
-;first need to popoperand_uint8
-  call popoperand_ui32
-  ld ix,OP1+10
-  ld (ix),0
-#include "subroutines/uint32tostr_baseC.z80"
-
-popfixed1616_to_str:
-  call popoperand_fixed1616
-  ld b,h
-  ld c,l
-  ld hl,OP1
-#include "subroutines/fixed1616_to_str.z80"
-
-
-pop_xfloat_to_str:
-  ld bc,-10
-  add hl,bc
-  ld (operandstack_ptr),hl
-  ld bc,OP1
-  call xtostr_p0
-  ld h,b
-  ld l,c
-  ret
-
-var_to_str:
-  ld a,(hl)
-  jr +_
-popvar_to_str:
-  dec hl
-  ld a,(hl)
-  ld (operandstack_ptr),hl
-_:
-  sub 'A'
-  add a,a
-  ld hl,pvars
-  add a,l
-  ld l,a
-  jr nc,$+3
-  inc h
-  ld a,(hl)
-  inc hl
-  ld h,(hl)
-  ld l,a
-  ld a,(hl)
-  inc hl
-
-  or a
-  jp z,err_fatal
-  dec a
-  jr z,ui8_to_str
-  dec a
-  jp z,ui16_to_str
-  dec a
-  jp z,ui32_to_str
-  dec a
-  dec a
-  jp z,fixed1616_to_str_
-  dec a
-  jp z,var_to_str
-  dec a
-  jp z,true_to_str
-  dec a
-  jp z,false_to_str
-  dec a
-  jr z,tstr_ref_to_str
-  dec a
-  dec a
-  jr z,str_to_str
-  dec a
-  ; jr z,strref_to_str
-  dec a
-  jr z,str_to_single
-  dec a
-  jr z,str_to_xfloat
-  jp err_could_not_convert
+  ld hl,to_str_LUT
+  jp pop_to
 
 
 
-ui8_to_str:
-ui16_to_str:
-ui32_to_str:
-fixed1616_to_str_:
-tstr_ref_to_str:
-  jp err_could_not_convert
-
-str_to_str:
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
-  ret
-
-str_to_single:
-  ld bc,OP1
-  call single2str
-  ld h,b
-  ld l,c
-  ret
-
-str_to_xfloat:
-  ld bc,OP1
-  call xtostr_p0
-  ld h,b
-  ld l,c
-  ret
 
 tokstr2ascii:
   ld a,e
@@ -1622,32 +1361,6 @@ popoperand_var:
   ld (operandstack_ptr),hl
   ret
 
-popoperand_ui8:
-;pops a uint8 into A from the operand stack
-#ifdef STACK_SAFE
-  ld hl,(operandstack_ptr)
-  ld de,(operandstack_bottom)
-  dec hl
-  scf
-  sbc hl,de
-  jp c,err_operand_stack_overflow_pop
-#endif
-  ld hl,(operandstack_ptr)
-  dec hl
-#ifdef STACK_SAFE
-  ld a,(hl)
-  cp type_ui8
-  jr z,+_
-  cp type_ui16
-  jp nz,err_bad_type
-;  set ,(iy+)      ;set flag that we have reduced accuracy
-  dec hl
-_:
-#endif
-  dec hl
-  ld a,(hl)
-  ld (operandstack_ptr),hl
-  ret
 
 pop2operand_xfloat:
   call popoperand_xfloat
@@ -1668,8 +1381,24 @@ popoperand_single:
   ld hl,to_single_LUT
   jp pop_to
 
+popoperand_ui8:
+  ld hl,to_ui8_LUT
+  jp pop_to
+
 popoperand_ui16:
   ld hl,to_ui16_LUT
+  jp pop_to
+
+popoperand_ui32:
+  ld hl,to_ui32_LUT
+  jp pop_to
+
+popoperand_fixed88:
+  ld hl,to_fixed88_LUT
+  jp pop_to
+
+popoperand_fixed1616:
+  ld hl,to_fixed1616_LUT
   jp pop_to
 
 pop_to:
@@ -1741,70 +1470,6 @@ _:
   inc hl
   ret
 
-popoperand_ui32:
-;pops a uint32 into DEHL from the operand stack
-#ifdef STACK_SAFE
-  ld hl,(operandstack_ptr)
-  ld de,(operandstack_bottom)
-  dec hl
-  dec hl
-  dec hl
-  dec hl
-  scf
-  sbc hl,de
-  jp c,err_operand_stack_overflow_pop
-#endif
-  ld hl,(operandstack_ptr)
-  dec hl
-#ifdef STACK_SAFE
-  ld a,(hl)
-  cp type_ui32
-  jp nz,err_bad_type
-#endif
-  dec hl
-  ld d,(hl)
-  dec hl
-  ld e,(hl)
-  dec hl
-  ld a,(hl)
-  dec hl
-  ld (operandstack_ptr),hl
-  ld l,(hl)
-  ld h,a
-  ret
-
-popoperand_fixed1616:
-;pops a fixed1616 into DEHL from the operand stack
-#ifdef STACK_SAFE
-  ld hl,(operandstack_ptr)
-  ld de,(operandstack_bottom)
-  dec hl
-  dec hl
-  dec hl
-  dec hl
-  scf
-  sbc hl,de
-  jp c,err_operand_stack_overflow_pop
-#endif
-  ld hl,(operandstack_ptr)
-  dec hl
-#ifdef STACK_SAFE
-  ld a,(hl)
-  cp type_fixed1616
-  jp nz,err_bad_type
-#endif
-  dec hl
-  ld d,(hl)
-  dec hl
-  ld e,(hl)
-  dec hl
-  ld a,(hl)
-  dec hl
-  ld (operandstack_ptr),hl
-  ld l,(hl)
-  ld h,a
-  ret
-
 pushoperand_var:
 ;pushes DE to the operand stack
 #ifdef STACK_SAFE
@@ -1857,6 +1522,11 @@ pushoperand_ui16_BC:
   ld e,c
   jr pushoperand_ui16
 
+
+pushoperand_fixed88:
+  ld a,type_fixed88
+  jr pushoperand_2byte
+
 exec_ans:
   ld hl,(Ans)
 pushoperand_ui16_HL:
@@ -1864,6 +1534,9 @@ pushoperand_ui16_HL:
 pushoperand_ui16:
 ;pushes DE to the operand stack
 #ifdef STACK_SAFE
+  ld a,type_ui16
+pushoperand_2byte:
+  push af
   ld bc,(operandstack_ptr)
   inc bc
   inc bc
@@ -1877,7 +1550,26 @@ pushoperand_ui16:
   inc hl
   ld (hl),d
   inc hl
-  ld (hl),type_ui16
+  pop af
+  ld (hl),a
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+pushoperand_ui8:
+;pushes A to the operand stack
+#ifdef STACK_SAFE
+  ld bc,(operandstack_ptr)
+  inc bc
+  ld hl,(operandstack_top)
+  scf
+  sbc hl,bc
+  jp c,err_operand_stack_overflow
+#endif
+  ld hl,(operandstack_ptr)
+  ld (hl),a
+  inc hl
+  ld (hl),type_ui8
   inc hl
   ld (operandstack_ptr),hl
   ret
@@ -1952,6 +1644,7 @@ pushoperand_ref:
 
 
 pushoperand_ui32_DEHL:
+pushoperand_ui32:
 ;pushes DEHL to the operand stack
 
   push de
@@ -2394,6 +2087,21 @@ xcmp_p0:
   ld (next_page_call_address),bc
   jp next_page_call
 
+xneg_p0:
+  ld bc,xneg
+  ld (next_page_call_address),bc
+  jp next_page_call
+
+negSingle_p0:
+  ld bc,negSingle
+  ld (next_page_call_address),bc
+  jp next_page_call
+
+single2str_p0:
+  ld bc,single2str
+  ld (next_page_call_address),bc
+  jp next_page_call
+
 
 #include "ops/add.z80"
 #include "ops/sub.z80"
@@ -2406,9 +2114,15 @@ xcmp_p0:
 #include "ops/ge.z80"
 #include "ops/lt.z80"
 #include "ops/gt.z80"
+#include "ops/neg.z80"
 #include "convert/to_xfloat.z80"
 #include "convert/to_single.z80"
+#include "convert/to_ui8.z80"
 #include "convert/to_ui16.z80"
+#include "convert/to_ui32.z80"
+#include "convert/to_fixed88.z80"
+#include "convert/to_fixed1616.z80"
+#include "convert/to_str.z80"
 
 #include "commandtable.z80"
 .echo "Page 0: ",$8000-$," bytes remaining"

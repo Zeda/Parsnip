@@ -17,13 +17,54 @@ to_fixed1616_LUT:
 _:
 
 ui8_convert_to_fixed1616:
-ui16_convert_to_fixed1616:
+  ex de,hl
+  ld e,(hl)
+  ld hl,0
+  ld d,h
+  ret
+
 ui32_convert_to_fixed1616:
-fixed88_convert_to_fixed1616:
+ui16_convert_to_fixed1616:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,0
+  ret
+
 fixed1616_convert_to_fixed1616:
-var_convert_to_fixed1616:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ex de,hl
+  ret
+
+fixed88_convert_to_fixed1616:
+  ex de,hl
+  ld d,(hl)
+  inc hl
+  ld l,(hl)
+  ld h,0
+  ld e,h
+  ret
+
 true_convert_to_fixed1616:
+  ld hl,1
+  jr +_
 false_convert_to_fixed1616:
+  ld hl,0
+_:
+  ld d,h
+  ld e,h
+  ret
+
+var_convert_to_fixed1616:
 tstr_ref_convert_to_fixed1616:
 raw_convert_to_fixed1616:
 str_convert_to_fixed1616:

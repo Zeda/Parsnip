@@ -1,0 +1,148 @@
+to_str_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_str
+  .dw ui16_convert_to_str
+  .dw ui32_convert_to_str
+  .dw fixed88_convert_to_str
+  .dw fixed1616_convert_to_str
+  .dw var_convert_to_str
+  .dw true_convert_to_str
+  .dw false_convert_to_str
+  .dw tstr_ref_convert_to_str
+  .dw raw_convert_to_str
+  .dw str_convert_to_str
+  .dw str_ref_convert_to_str
+  .dw single_convert_to_str
+  .dw xfloat_convert_to_str
+_:
+
+ui8_convert_to_str:
+  ld a,(de)
+  ld hl,OP1
+#include "subroutines/uitoa_8.z80"
+
+ui16_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,OP1
+#include "subroutines/uitoa_16.z80"
+
+ui32_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ex de,hl
+  ld ix,OP1+10
+  ld (ix),0
+#include "subroutines/uint32tostr_baseC.z80"
+
+fixed88_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,OP1
+#include "subroutines/fixed88_to_str.z80"
+
+fixed1616_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ex de,hl
+#include "subroutines/fixed1616_to_str.z80"
+
+true_convert_to_str:
+false_convert_to_str:
+  ld a,(de)
+  cp type_false
+false_to_str:
+  ld hl,s_false
+  jr z,+_
+true_to_str:
+  ld hl,s_true
+_:
+  ld de,OP1
+  ld bc,6
+  ldir
+  ld hl,OP1
+  ret
+s_false:
+  .db "false",0
+s_true:
+  .db "true",0
+
+var_convert_to_str:
+raw_convert_to_str:
+  jp err_syntax
+
+tstr_ref_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+
+;DE points to the string
+;BC is the size of the existing string
+;For now, copy it to OP1
+  ld hl,OP1
+  ex de,hl
+  ld a,b
+  or c
+  jr nz,+_
+  ex de,hl
+  ld (hl),a
+  ret
+_:
+  call tokstr2ascii
+  ld hl,OP1
+  ret
+
+
+str_convert_to_str:
+  ex de,hl
+  ret
+str_ref_convert_to_str:
+  ex de,hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+single_convert_to_str:
+  ex de,hl
+  ld bc,OP1
+  call single2str_p0
+  ld h,b
+  ld l,c
+  ret
+xfloat_convert_to_str:
+  ex de,hl
+  ld bc,OP1
+  call xtostr_p0
+  ld h,b
+  ld l,c
+  ret

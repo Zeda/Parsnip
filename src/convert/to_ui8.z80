@@ -16,14 +16,23 @@ to_ui8_LUT:
   .dw xfloat_convert_to_ui8
 _:
 
-ui8_convert_to_ui8:
+fixed1616_convert_to_ui8:
+  inc de
+fixed88_convert_to_ui8:
+  inc de
 ui16_convert_to_ui8:
 ui32_convert_to_ui8:
-fixed88_convert_to_ui8:
-fixed1616_convert_to_ui8:
-var_convert_to_ui8:
+ui8_convert_to_ui8:
+  ld a,(de)
+  ret
 true_convert_to_ui8:
+  ld a,1
+  ret
 false_convert_to_ui8:
+  xor a
+  ret
+
+var_convert_to_ui8:
 tstr_ref_convert_to_ui8:
 raw_convert_to_ui8:
 str_convert_to_ui8:

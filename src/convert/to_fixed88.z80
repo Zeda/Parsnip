@@ -16,14 +16,31 @@ to_fixed88_LUT:
   .dw xfloat_convert_to_fixed88
 _:
 
-ui8_convert_to_fixed88:
 ui16_convert_to_fixed88:
 ui32_convert_to_fixed88:
-fixed88_convert_to_fixed88:
+ui8_convert_to_fixed88:
+  ld a,(de)
+  ld d,a
+  ld e,0
+  ret
+
 fixed1616_convert_to_fixed88:
-var_convert_to_fixed88:
+  inc de
+fixed88_convert_to_fixed88:
+  ex de,hl
+  ld e,(hl)
+  inc de
+  ld d,(hl)
+  ret
+
 true_convert_to_fixed88:
+  ld de,256
+  ret
 false_convert_to_fixed88:
+  ld de,0
+  ret
+
+var_convert_to_fixed88:
 tstr_ref_convert_to_fixed88:
 raw_convert_to_fixed88:
 str_convert_to_fixed88:

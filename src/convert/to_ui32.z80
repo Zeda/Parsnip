@@ -16,14 +16,52 @@ to_ui32_LUT:
   .dw xfloat_convert_to_ui32
 _:
 
-ui8_convert_to_ui32:
-ui16_convert_to_ui32:
-ui32_convert_to_ui32:
 fixed88_convert_to_ui32:
+  inc de
+ui8_convert_to_ui32:
+;to DEHL
+  ld a,(de)
+  ld e,a
+  ld hl,0
+  ld d,h
+  ret
+
 fixed1616_convert_to_ui32:
-var_convert_to_ui32:
+  inc de
+  inc de
+ui16_convert_to_ui32:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+  ld hl,0
+  ret
+
+ui32_convert_to_ui32:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  ex de,hl
+  ret
+
 true_convert_to_ui32:
+  ld hl,1
+  jr +_
 false_convert_to_ui32:
+  ld hl,0
+_:
+  ld d,h
+  ld e,h
+  ret
+
+var_convert_to_ui32:
 tstr_ref_convert_to_ui32:
 raw_convert_to_ui32:
 str_convert_to_ui32:
