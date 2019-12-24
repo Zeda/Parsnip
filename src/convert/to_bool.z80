@@ -1,0 +1,78 @@
+;pops a boolean into the zero flag, z means false, nz means true
+
+to_bool_LUT:
+  .db (+_-$-1)/2
+  .dw ui8_convert_to_bool
+  .dw ui16_convert_to_bool
+  .dw ui32_convert_to_bool
+  .dw fixed88_convert_to_bool
+  .dw fixed1616_convert_to_bool
+  .dw var_convert_to_bool
+  .dw true_convert_to_bool
+  .dw false_convert_to_bool
+  .dw tstr_ref_convert_to_bool
+  .dw raw_convert_to_bool
+  .dw str_convert_to_bool
+  .dw str_ref_convert_to_bool
+  .dw single_convert_to_bool
+  .dw xfloat_convert_to_bool
+_:
+
+ui8_convert_to_bool:
+  ld a,(de)
+  or a
+  ret
+
+fixed88_convert_to_bool:
+ui16_convert_to_bool:
+  ex de,hl
+  xor a
+  jr +_
+fixed1616_convert_to_bool:
+ui32_convert_to_bool:
+  ex de,hl
+  or (hl)
+  inc hl
+  or (hl)
+  inc hl
+_:
+  or (hl)
+  inc hl
+  or (hl)
+  ret
+
+true_convert_to_bool:
+  or 1
+  ret
+
+false_convert_to_bool:
+  xor a
+  ret
+
+var_convert_to_bool:
+tstr_ref_convert_to_bool:
+raw_convert_to_bool:
+str_convert_to_bool:
+str_ref_convert_to_bool:
+;always return true
+  or 1
+  ret
+
+single_convert_to_bool:
+  ex de,hl
+  inc hl
+  inc hl
+  ld a,(hl)
+  inc hl
+  or (hl)
+  ret
+
+xfloat_convert_to_bool:
+  ld hl,7
+  add hl,de
+  ld a,(hl)
+  inc hl
+  or (hl)
+  inc hl
+  or (hl)
+  ret
