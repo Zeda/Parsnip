@@ -1,32 +1,32 @@
-z32_0 = xOP3+32
-
-eval_sqr_LUT:
+eval_cubed_LUT:
   .db (+_-$-1)/2
   .dw err_syntax      ;should not have run out of args!
-  .dw sqr_ui8
-  .dw sqr_ui16
-  .dw sqr_ui32
-  .dw sqr_fixed88
-  .dw sqr_fixed1616
-  .dw sqr_var
-  .dw sqr_true
-  .dw sqr_false
-  .dw sqr_tstr_ref
-  .dw sqr_raw
-  .dw sqr_str
-  .dw sqr_str_ref
-  .dw sqr_single
-  .dw sqr_xfloat
+  .dw cubed_ui8
+  .dw cubed_ui16
+  .dw cubed_ui32
+  .dw cubed_fixed88
+  .dw cubed_fixed1616
+  .dw cubed_var
+  .dw cubed_true
+  .dw cubed_false
+  .dw cubed_tstr_ref
+  .dw cubed_raw
+  .dw cubed_str
+  .dw cubed_str_ref
+  .dw cubed_single
+  .dw cubed_xfloat
 _:
 
 
-sqr_true:
-sqr_false:
-;1*1 = 1, 0*0=0
+cubed_true:
+cubed_false:
+;1*1*1 = 1, 0*0*0=0
 ;nice, just exit
   ret
 
-sqr_ui32:
+cubed_ui8:
+cubed_ui16:
+cubed_ui32:
   call popoperand_ui32
   ld bc,mul32
   ld (next_page_call_address),bc
@@ -34,8 +34,13 @@ sqr_ui32:
   pop bc
   push hl
   pop ix
+  push de \ push hl
   call next_page_call
+  pop ix \ pop bc
   ;z0_32 has the result
+  ld hl,(z32_0)
+  ld de,(z32_0+2)
+  call next_page_call
   ld hl,(z32_0)
   ld de,(z32_0+2)
   ld a,d
@@ -44,48 +49,51 @@ sqr_ui32:
   jp pushoperand_ui16_HL
 
 
-sqr_fixed88:
+cubed_fixed88:
   call popoperand_fixed88
   ld b,d
   ld c,e
+  push de
+  call mulfixed_88
+  pop bc
+  ex de,hl
   call mulfixed_88
   ex de,hl
   jp pushoperand_fixed88
 
 
-sqr_fixed1616:
+cubed_fixed1616:
   call popoperand_fixed1616
   push de
   pop bc
   push hl
   pop ix
+  push de \ push hl
+  call mulfixed16_16_p0
+  pop ix \ pop bc
   call mulfixed16_16_p0
   jp pushoperand_fixed1616
 
 ;
-sqr_var:
-sqr_tstr_ref:
-sqr_raw:
-sqr_str:
-sqr_str_ref:
+cubed_var:
+cubed_tstr_ref:
+cubed_raw:
+cubed_str:
+cubed_str_ref:
   jp err_syntax
 
-sqr_ui8:
-sqr_ui16:
-  call popoperand_ui16
-  ld b,d
-  ld c,e
-  call DE_Times_BC
-  ld a,d
-  or e
-  jp nz,pushoperand_ui32
-  jp pushoperand_ui16_HL
 
-sqr_single:
+cubed_single:
   call popoperand_single
+  ld de,OP1
+  call mov4_p0
+  ld hl,OP1
   ld d,h
   ld e,l
   ld bc,(operandstack_ptr)
+  call mulSingle_p0
+  ld h,b
+  ld l,c
   call mulSingle_p0
 ;WARNING: This routine assumes there is enough space on the operand stack!
   ld hl,4
@@ -95,11 +103,17 @@ sqr_single:
   ld (operandstack_ptr),hl
   ret
 
-sqr_xfloat:
+cubed_xfloat:
   call popoperand_xfloat
+  ld de,OP1
+  call mov10_p0
+  ld hl,OP1
   ld d,h
   ld e,l
   ld bc,(operandstack_ptr)
+  call xmul_p0
+  ld h,b
+  ld l,c
   call xmul_p0
 ;WARNING: This routine assumes there is enough space on the operand stack!
 ;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10

@@ -6,10 +6,12 @@
 #include "single.inc"
 #include "strtox.z80"
 #include "xtostr.z80"
-#include "xln.z80"
+#include "xpow.z80"
+#include "xexp.z80"
 #include "xcmp.z80"
 #include "xneg.z80"
 #include "xrand.z80"
+#include "xinv.z80"
 
 
 #include "absSingle.z80"
@@ -40,10 +42,15 @@
 #include "str2single.z80"
 #include "singleTo_int16.z80"
 
+#include "math/multiplication/mulfixed1616.z80"
 
 xconst_to_xOP1:
   call xconst
   ld de,xOP1
+  jp mov10
+
+xconst_to:
+  call xconst
   jp mov10
 
 .echo "Page 1: ",$8000-$," bytes remaining"

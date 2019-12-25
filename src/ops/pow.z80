@@ -1,0 +1,50 @@
+eval_pow_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw pow_ui8
+  .dw pow_ui16
+  .dw pow_ui32
+  .dw pow_fixed88
+  .dw pow_fixed1616
+  .dw pow_var
+  .dw pow_true
+  .dw pow_false
+  .dw pow_tstr_ref
+  .dw pow_raw
+  .dw pow_str
+  .dw pow_str_ref
+  .dw pow_single
+  .dw pow_xfloat
+_:
+
+pow_tstr_ref:
+pow_str:
+pow_str_ref:
+pow_raw:
+pow_var:
+  jp err_syntax
+
+pow_single:
+  call pop2operand_single
+  ld bc,(operandstack_ptr)
+  call powSingle_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,4
+  add hl,bc
+  ld (hl),type_single
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+pow_ui8:
+pow_ui16:
+pow_true:
+pow_false:
+pow_ui32:
+pow_fixed88:
+pow_fixed1616:
+pow_xfloat:
+  call pop2operand_xfloat
+  ld bc,(operandstack_ptr)
+  call xpow_p0
+  jp push_special_xfloat

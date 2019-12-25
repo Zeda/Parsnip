@@ -298,6 +298,28 @@ exec_sqr:
   ld hl,eval_sqr_LUT
   jp jumptableindex
 
+exec_inv:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  ld c,a
+  cp type_var
+  call z,peekvar
+  ld a,c
+  ld hl,eval_inv_LUT
+  jp jumptableindex
+
+exec_cubed:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  ld c,a
+  cp type_var
+  call z,peekvar
+  ld a,c
+  ld hl,eval_cubed_LUT
+  jp jumptableindex
+
 exec_repeat:
 ; Need to push HL to the operator stack, this points to the expression
 ; need to push the repeat token to the operator stack
@@ -346,6 +368,10 @@ exec_pixeloff:
 exec_pixeltoggle:
 exec_pixeltest:
 exec_int:
+exec_ln:
+exec_exp:
+exec_sqrt:
+
 exec_pause:
 exec_disp:
 exec_fix:
@@ -361,7 +387,7 @@ exec_sub:
 exec_mul:
 exec_div:
 exec_neg:
-
+exec_pow:
 ;pop off ops and evaluate until op has lower precedence
   push af
   call getprecedence
@@ -519,6 +545,7 @@ precedenceLUT:
   .db $6D,32  ;<=
   .db $6E,32  ;>=
   .db $B0,41  ;(-)
+  .db $F0,47  ;^
   .db $83,48  ;division
   .db $82,49  ;multiplication
   .db $71,50  ;subtraction
@@ -606,6 +633,33 @@ exec_rand:
   call xrand_p0
   jp pushoperand_xfloat
 
+exec_pi:
+  ld de,(operandstack_ptr)
+  ld a,X_CONST_PI
+  call xconst_to_p0
+  ex de,hl
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+exec_BB:
+  ld a,(hl)
+  cp $31    ;e token
+  jr z,exec_e
+  jp ErrBadToken
+exec_e:
+  inc hl
+  ld (parsePtr),hl
+  ld de,(operandstack_ptr)
+  ld a,X_CONST_e
+  call xconst_to_p0
+  ex de,hl
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
 eval_dispgraph:
 ;might have 0 or 1 argument
 ;assume 0 for now
@@ -655,11 +709,59 @@ _:
   ret
 
 eval_int:
-  call popoperand_ui16
+  call popoperand_ui32
   push de
+  push hl
   call pop_end_of_params
+  pop hl
   pop de
-  jp pushoperand_ui16
+  ld a,d
+  or e
+  jp z,pushoperand_ui16_HL
+  jp pushoperand_ui32
+
+eval_sqrt:
+;Ideally, we'd want to be more clever about the type.
+;If input is an integer and output is an integer, we'd want to keep it that way.
+  call popoperand_xfloat
+  push hl
+  call pop_end_of_params
+  pop hl
+
+  ld bc,(operandstack_ptr)
+  call xsqrt_p0
+  jp push_special_xfloat
+
+eval_ln:
+  call popoperand_xfloat
+  push hl
+  call pop_end_of_params
+  pop hl
+
+  ld bc,(operandstack_ptr)
+  call xln_p0
+  jp push_special_xfloat
+
+eval_exp:
+  call popoperand_xfloat
+  push hl
+  call pop_end_of_params
+  pop hl
+
+  ld bc,(operandstack_ptr)
+  call xexp_p0
+  jp push_special_xfloat
+
+push_special_xfloat:
+;WARNING: This routine assumes there is enough space on the operand stack!
+;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10
+;bytes and push on 11. Or combos that include type_var can be a pain.
+  ld hl,10
+  add hl,bc
+  ld (hl),type_xfloat
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
 
 eval_fix:
   call popoperand_ui8
@@ -1061,6 +1163,10 @@ eval_div:
   ld hl,eval_div_LUT
   jp mathop
 
+eval_pow:
+  ld hl,eval_pow_LUT
+  jp mathop
+
 mathop:
   push hl
   call peekoperand_2
@@ -1286,11 +1392,10 @@ popoperand_var:
 pop2operand_xfloat:
   call popoperand_xfloat
   ;move it to xOP3
-  ld de,xOP3
+  ld de,OP3
   call mov10_p0
-
   call popoperand_xfloat
-  ld de,xOP3
+  ld de,OP3
   ld bc,(operandstack_ptr)
   ret
 
@@ -1971,6 +2076,8 @@ DrawRectToGraph:
 #include "math/mul16.z80"
 #include "math/BC_Div_DE_faster.z80"
 #include "math/div16_continue.z80"
+#include "math/division/divfixed_88.z80"
+#include "math/multiplication/mulfixed_88.z80"
 #include "err.z80"
 
 
@@ -2022,9 +2129,40 @@ xcmp_p0:
   jp next_page_call
 
 xneg_p0:
-  ld bc,xneg
-  ld (next_page_call_address),bc
+  ld de,xneg
+  ld (next_page_call_address),de
   jp next_page_call
+
+xsqrt_p0:
+  ld de,xsqrt
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xln_p0:
+  ld de,xln
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xexp_p0:
+  ld de,xexp
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xpow_p0:
+  ld ix,xpow
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+xinv_p0:
+  ld de,xinv
+  ld (next_page_call_address),de
+  jp next_page_call
+
+xconst_to_p0:
+  ld hl,xconst_to
+  ld (next_page_call_address),hl
+  jp next_page_call
+
 
 negSingle_p0:
   ld bc,negSingle
@@ -2032,29 +2170,45 @@ negSingle_p0:
   jp next_page_call
 
 addSingle_p0:
-  ld bc,addSingle
-  ld (next_page_call_address),bc
+  ld ix,addSingle
+  ld (next_page_call_address),ix
   jp next_page_call
 
 subSingle_p0:
-  ld bc,subSingle
-  ld (next_page_call_address),bc
+  ld ix,subSingle
+  ld (next_page_call_address),ix
   jp next_page_call
 
 mulSingle_p0:
-  ld bc,mulSingle
-  ld (next_page_call_address),bc
+  ld ix,mulSingle
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+invSingle_p0:
+  ld de,invSingle
+  ld (next_page_call_address),de
   jp next_page_call
 
 divSingle_p0:
-  ld bc,divSingle
-  ld (next_page_call_address),bc
+  ld ix,divSingle
+  ld (next_page_call_address),ix
+  jp next_page_call
+
+powSingle_p0:
+  ld ix,powSingle
+  ld (next_page_call_address),ix
   jp next_page_call
 
 single2str_p0:
-  ld bc,single2str
-  ld (next_page_call_address),bc
+  ld de,single2str
+  ld (next_page_call_address),de
   jp next_page_call
+
+mulfixed16_16_p0:
+  ld hl,mulfixed16_16
+  ld (next_page_call_address),hl
+  jp next_page_call
+
 
 
 #include "ops/add.z80"
@@ -2070,6 +2224,9 @@ single2str_p0:
 #include "ops/gt.z80"
 #include "ops/neg.z80"
 #include "ops/sqr.z80"
+#include "ops/inv.z80"
+#include "ops/cubed.z80"
+#include "ops/pow.z80"
 #include "convert/to_xfloat.z80"
 #include "convert/to_single.z80"
 #include "convert/to_ui8.z80"

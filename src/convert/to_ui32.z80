@@ -1,3 +1,5 @@
+;return the ui32 in DEHL
+
 to_ui32_LUT:
   .db (+_-$-1)/2
   .dw ui8_convert_to_ui32
@@ -67,5 +69,89 @@ raw_convert_to_ui32:
 str_convert_to_ui32:
 str_ref_convert_to_ui32:
 single_convert_to_ui32:
-xfloat_convert_to_ui32:
   jp err_syntax
+xfloat_convert_to_ui32:
+  ld hl,8
+  add hl,de
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+
+  ;If top bit of DE is 1, it is negative, so return 0
+  ld a,d
+  add a,a
+  jr c,set_DEHL_0
+  dec hl
+  dec hl
+
+  ;Check special values, so DE = 0
+  or e
+  jr z,xfloat_convert_to_ui32_special
+
+  ;now if D<0x40, then then the value is on [0,1]
+  ld a,d
+  add a,a
+  jp p,set_DEHL_0
+
+;now if DE>=4020, then output 0xFFFFFFFF
+;A is 2*D atm, so check if A>0x80 (A is at least 0x80)
+  add a,a
+  jr nz,set_DEHL_max
+  ld a,31
+  sub e
+  jr c,set_DEHL_max
+
+; Good, now A is the number of times we need to shift the exponent right
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  dec hl
+  ld c,(hl)
+  dec hl
+  ld l,(hl)
+  ld h,c
+  ret z   ;don't have to shift at all
+
+  jr shift32_right_8_begin
+
+_:
+  ld l,h
+  ld h,e
+  ld e,d
+  ld d,0
+  ret z
+shift32_right_8_begin:
+  sub 8
+  jr nc,-_
+  add a,9
+
+;A is the number of single shifts required, from 1 to 7
+  ld b,a
+  jr shift32_right_1_begin
+_:
+  srl d
+  rr e
+  rr h
+  rr l
+shift32_right_1_begin:
+  djnz -_
+  ret
+
+xfloat_convert_to_ui32_special:
+;1xxxxxxx ==> INF ==> 0xFFFFFFFF
+;01xxxxxx ==> NaN ==> 0x00000000
+;00xxxxxx ==> 0   ==> 0x00000000
+  ld a,(hl)
+  add a,a
+  jr nc,set_DEHL_0
+set_DEHL_max:
+  ld de,$FFFF
+  ld h,d
+  ld l,e
+  ret
+
+set_DEHL_0:
+  ld de,0
+  ld h,d
+  ld l,e
+  ret

@@ -1,0 +1,62 @@
+eval_inv_LUT:
+  .db (+_-$-1)/2
+  .dw err_syntax      ;should not have run out of args!
+  .dw inv_ui8
+  .dw inv_ui16
+  .dw inv_ui32
+  .dw inv_fixed88
+  .dw inv_fixed1616
+  .dw inv_var
+  .dw inv_true
+  .dw inv_false
+  .dw inv_tstr_ref
+  .dw inv_raw
+  .dw inv_str
+  .dw inv_str_ref
+  .dw inv_single
+  .dw inv_xfloat
+_:
+
+
+inv_true:
+inv_false:
+;1/1 = 1, gonna map 1/0=0
+;nice, just exit
+  ret
+
+inv_fixed88:
+  call popoperand_fixed88
+  ld bc,256
+  call BC_Div_DE_88
+  ex de,hl
+  jp pushoperand_fixed88
+
+;
+inv_var:
+inv_tstr_ref:
+inv_raw:
+inv_str:
+inv_str_ref:
+  jp err_syntax
+
+inv_single:
+  call popoperand_single
+  ld bc,(operandstack_ptr)
+  call invSingle_p0
+;WARNING: This routine assumes there is enough space on the operand stack!
+  ld hl,4
+  add hl,bc
+  ld (hl),type_single
+  inc hl
+  ld (operandstack_ptr),hl
+  ret
+
+inv_ui8:
+inv_ui16:
+inv_ui32:
+inv_fixed1616:
+inv_xfloat:
+  call popoperand_xfloat
+  ld bc,(operandstack_ptr)
+  call xinv_p0
+  jp push_special_xfloat
