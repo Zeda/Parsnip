@@ -19,7 +19,9 @@ xconst:
   add a,a
   add a,l
   add a,a
+#if (start_xconst&255) != 0
   add a,start_xconst&255
+#endif
   ld l,a
   ld h,start_xconst>>8
   ret nc
