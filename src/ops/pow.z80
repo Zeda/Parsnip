@@ -45,6 +45,5 @@ pow_fixed88:
 pow_fixed1616:
 pow_xfloat:
   call pop2operand_xfloat
-  ld bc,(operandstack_ptr)
   call xpow_p0
   jp push_special_xfloat

@@ -101,12 +101,4 @@ sqr_xfloat:
   ld e,l
   ld bc,(operandstack_ptr)
   call xmul_p0
-;WARNING: This routine assumes there is enough space on the operand stack!
-;Hypothetically, multiplying a ui32 and fixed1616 will need to pop off only 10
-;bytes and push on 11. Or combos that include type_var can be a pain.
-  ld hl,10
-  add hl,bc
-  ld (hl),type_xfloat
-  inc hl
-  ld (operandstack_ptr),hl
-  ret
+  jp push_special_xfloat
