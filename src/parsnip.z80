@@ -363,6 +363,7 @@ exec_clrdraw:
 exec_clrhome:
 exec_dispgraph:
 exec_putsprite:
+exec_getkey:
 exec_pixelon:
 exec_pixeloff:
 exec_pixeltoggle:
@@ -836,6 +837,25 @@ _:
 
 
 ;Need to evaluate the function pop the 0x00 off the operator stack and evaluate
+
+eval_getkey:
+  ld hl,(operandstack_ptr)
+  dec hl
+  xor a
+  cp (hl)
+  jr z,returnkeycode
+  call popoperand_ui8
+  push af
+  call pop_end_of_params
+  pop af
+  call CheckKey
+  jp pushoperand_bool_z
+
+returnkeycode:
+  call pop_end_of_params
+  call GetKey
+  jp pushoperand_ui8
+
 
 eval_putsprite:
   ; call countargs
@@ -1839,6 +1859,37 @@ CheckOnPress:
   call CheckStatus
   ret nz
   ld c,41
+  ret
+
+CheckKey:
+;Input:
+;     A is the key to test for
+;Output:
+;     z if the key is pressed, nz if not
+  call diRestore
+  cp 41 ;on-key
+  jp z,CheckStatus
+_:
+  dec a \ and 63
+  ld b,a
+  and 7
+  srl b \ srl b \ srl b
+  inc b \ inc a
+;b = 2; a = 1
+  ld c,a
+  ld a,7Fh
+_:
+  rlca
+  djnz -_
+  out (1),a
+  ld b,c
+  ld a,80h
+_:
+  rlca
+  djnz -_
+  ld c,a
+  in a,(1)
+  and c
   ret
 
 isStartMenu_valid:

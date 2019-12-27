@@ -73,6 +73,7 @@ TokenTable:
  ; .db $48,1,9,"Contrast("
  ; .db $4E,1,9,"ShiftBuf("
  ; .db $62,1,7,"WriteB("
+ .db $5A,1,7,"getKey("
  .db $66,1,4,"raw("
  ; .db $70,1,4,"Inv("
  ; .db $72,1,7,"WriteW("

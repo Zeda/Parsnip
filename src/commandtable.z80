@@ -178,7 +178,7 @@ CommandJumpTable:
 .dw ErrBadToken    ; AA
 .dw exec_rand      ; AB
 .dw exec_pi        ; AC
-.dw ErrBadToken    ; AD
+.dw exec_getkey    ; AD
 .dw ErrBadToken    ; AE
 .dw ErrBadToken    ; AF
 .dw exec_neg       ; B0
@@ -437,7 +437,7 @@ evalLUT:
 .dw ErrBadToken    ; AA
 .dw ErrBadToken    ; AB
 .dw ErrBadToken    ; AC
-.dw ErrBadToken    ; AD
+.dw eval_getkey    ; AD
 .dw ErrBadToken    ; AE
 .dw ErrBadToken    ; AF
 .dw eval_neg       ; B0
