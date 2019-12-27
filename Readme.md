@@ -68,7 +68,7 @@ If you want to add a new function, you will need to add it to the
 LUTs (Look Up Tables) in [src/commandtable.z80](src/commandtable.z80).
 There is an `exec` table that is used when the token is parsed, and an `eval`
 table for when a token is executed. Next, in
-[src/gramma.z80](src/gramma.z80), find the `exec_disp` label, and add your
+[src/parsnip.z80](src/parsnip.z80), find the `exec_disp` label, and add your
 `exec_mytoken` label (replacing `mytoken` with the token name). Now, you can
 add your `eval_mytoken` routine somewhere. Arguments are stored in reverse order
 on the `operandstack`. If you are expecting a string argument, call
