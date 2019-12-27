@@ -52,6 +52,7 @@ Disp Z+X
 Pause
 ```
 
+See [commands.md](commands.md) for a more complete set of commands documentation.
 
 # How To Help
 This project needs a **lot** of work, and not just in terms of planning.
