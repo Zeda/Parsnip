@@ -881,38 +881,32 @@ eval_putsprite:
 
 eval_pixelon:
   call eval_pixel
-  jp nc,pop_end_of_params
+  ret nc
   or (hl)
   ld (hl),a
-  jp pop_end_of_params
+  ret
 
 eval_pixeloff:
   call eval_pixel
-  jp nc,pop_end_of_params
+  ret nc
   cpl
   and (hl)
   ld (hl),a
-  jp pop_end_of_params
+  ret
 
 eval_pixeltoggle:
   call eval_pixel
-  jp nc,pop_end_of_params
+  ret nc
   xor (hl)
   ld (hl),a
-  jp pop_end_of_params
+  ret
 
 eval_pixeltest:
   call eval_pixel
-  jr nc,+_
+  jp nc,pushoperand_bool_c
   and (hl)
   add a,255
-_:
-  push af
-  call pop_end_of_params
-  pop af
-  ld de,0
-  rl e
-  jp pushoperand_ui16
+  jp pushoperand_bool_c
 
 
 eval_pixel:
@@ -922,6 +916,7 @@ eval_pixel:
   ld de,gbuf
   call nz,popoperand_buf
   ld (gbuf_temp),de
+  call pop_end_of_params
   pop bc
 #include "gfx/GetPixelLoc.z80"
 
