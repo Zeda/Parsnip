@@ -4,3 +4,6 @@
 [submodule "Z80-Optimized-Routines"]
 	path = Z80-Optimized-Routines
 	url = https://github.com/Zeda/Z80-Optimized-Routines
+[submodule "z80float"]
+	path = z80float
+	url = https://github.com/Zeda/z80float.git

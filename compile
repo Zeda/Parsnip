@@ -2,5 +2,5 @@
 
 cd src
 echo -e "\e[1m\e[37mAssembling App\e[0m"
-spasm parsnip.z80 ../bin/parsnip.8xk -I z80float/single -I z80float/extended -I ../Z80-Optimized-Routines
+spasm parsnip.z80 ../bin/parsnip.8xk -I ../z80float/single -I ../z80float/extended -I ../Z80-Optimized-Routines
 cd ..
