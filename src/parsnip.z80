@@ -932,7 +932,7 @@ eval_raw:
   push hl
   call pop_end_of_params
   pop de
-  ld hl,(operandstack_ptr)
+;  ld hl,(operandstack_ptr)
   push hl
   call ConvHex
   pop bc
@@ -1544,14 +1544,14 @@ pop_operand:
 
 pop_to_variable_size:
   ex de,hl
+  ld a,c
   dec hl
-  ld e,a
   ld b,(hl)
   dec hl
   ld c,(hl)
   or a
   sbc hl,bc
-  ld a,e
+  ld (operandstack_ptr),hl
   ex de,hl
   ret
 
