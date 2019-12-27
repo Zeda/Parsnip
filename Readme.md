@@ -33,7 +33,7 @@ Once installed you can:
 
 ## Windows
 ```
-spasm parsnip.z80 ..\bin\parsnip.8xk -I z80float\single -I z80float\extended
+spasm src\parsnip.z80 bin\parsnip.8xk -I z80float\single -I z80float\extended -I Z80-Optimized-Routines
 ```
 
 # Examples
