@@ -13,6 +13,13 @@ startmenu__:
 ;First we set up the initial data and pointers
   call SetUpData
 
+;Set the token hook
+  in a,(6)
+  ld (9BCAh),a
+  ld hl,TokenHook
+  ld (9BC8h),hl
+  set 0,(iy+35h)
+
 ;Delete temp programs (archived progs are copied to temp programs)
   bcall(_DeleteTempPrograms)
 
@@ -161,25 +168,6 @@ _:
   ld (flags+34),a
   ld de,1326h
   jr highlight_option
-_:
-  cp 49 \ jr nz,+_ ;F5
-  in a,(6)
-  ld hl,9BCAh
-  cp (hl)
-  ld hl,TokenHook
-;Manually setting hook
-  ld (9BC8h),hl
-  ld (9BCAh),a
-  jr nz,SetTokenHook
-  bit 0,(iy+35h)
-  jr z,SetTokenHook
-  res 0,(iy+35h)
-  jr $+6
-SetTokenHook:
-  set 0,(iy+35h)
-  ld de,$134E
-  call highlight
-  jp main_menu_loop
 _:
   ld hl,main_menu_cursor
   dec a \ jr z,cur_dn   ;down
