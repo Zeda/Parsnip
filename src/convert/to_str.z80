@@ -19,7 +19,7 @@ _:
 ui8_convert_to_str:
   ld a,(de)
   ld hl,OP1
-#include "subroutines/uitoa_8.z80"
+#include "conversion/uitoa_8.z80"
 
 ui16_convert_to_str:
   ex de,hl
@@ -27,7 +27,7 @@ ui16_convert_to_str:
   inc hl
   ld d,(hl)
   ld hl,OP1
-#include "subroutines/uitoa_16.z80"
+#include "conversion/uitoa_16.z80"
 
 ui32_convert_to_str:
   ex de,hl
@@ -42,7 +42,7 @@ ui32_convert_to_str:
   ex de,hl
   ld ix,OP1+10
   ld (ix),0
-#include "subroutines/uint32tostr_baseC.z80"
+#include "conversion/uint32tostr_baseC.z80"
 
 fixed88_convert_to_str:
   ex de,hl
@@ -50,7 +50,7 @@ fixed88_convert_to_str:
   inc hl
   ld d,(hl)
   ld hl,OP1
-#include "subroutines/fixed88_to_str.z80"
+#include "conversion/fixed88_to_str.z80"
 
 fixed1616_convert_to_str:
   ex de,hl
@@ -63,7 +63,7 @@ fixed1616_convert_to_str:
   ld h,(hl)
   ld l,a
   ex de,hl
-#include "subroutines/fixed1616_to_str.z80"
+#include "conversion/fixed1616_to_str.z80"
 
 true_convert_to_str:
 false_convert_to_str:
