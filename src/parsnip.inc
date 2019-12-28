@@ -161,7 +161,7 @@ k_save      = font_ptr+2    ;1 \
 k_count     = k_save+1      ;1 |
 k_delay     = k_count+1     ;1 /
 
-gray_mask   = 8080h         ;1 \
+gray_mask   = 80C0h         ;1 \    ;xfloat routines need up to 187 bytes.
 gray_method = gray_mask+1   ;1 /
 gbuf_temp   = gray_method+1 ;2
 graybuf_ptr = gbuf_temp+2   ;2
