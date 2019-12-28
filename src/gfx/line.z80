@@ -7,7 +7,7 @@ fastline:
 ;HL is where to draw
 ;Destroys:
 ;  All (including shadow registers)
-;  3 bytes at TempWord1
+;  3 bytes at temp_word_1
 
 ;Disable interrupts so that we can use shadow registers
   call diRestore

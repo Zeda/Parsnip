@@ -1,0 +1,6 @@
+Not really a license, but basically, these fonts were made with DrDnar's
+Monochrome Font Editor (MFE) for Grammer 2 and other projects (by Zeda Thomas).
+
+Feel free to use these fonts, but if you want to edit them to be included in one
+of Zeda Thomas' projects (i.e. Grammer, Parnsip, BatLib, etc.), it's with the
+expectation that anybody will be allowed to freely use it.

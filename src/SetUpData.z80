@@ -14,8 +14,8 @@ SetUpData:
   ld (page_restore),a
 
   ld hl,plotSScreen
-  ld (BufPtr),hl
-  ld (GrayBufPtr),hl
+  ld (buf_ptr),hl
+  ld (graybuf_ptr),hl
 
 ;Set up operand and operator stack pointers
   ld hl,appBackUpScreen
@@ -50,19 +50,19 @@ SetUpData:
   ld l,a
   ld (flags+33),a
   ld (flags+34),hl
-  ld (GrayRotate),hl
+  ld (text_mode),a
 
   ld a,3
-  ld (OutputLogic),a
-  ld (TextPauseTime),a
+  ld (text_logic),a
+  ld (text_delay),a
   ld hl,FontSet
-  ld (FontPointer),hl
+  ld (font_ptr),hl
 
-  ld hl,5555h
-  ld (GrayMask),hl
+  ld hl,$0155
+  ld (gray_mask),hl
 
   pop hl
-  ld (SPSave),sp
+  ld (sp_save),sp
   jp (hl)
 setupRAMdata:
 ;not speed critical

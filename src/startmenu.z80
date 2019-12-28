@@ -29,8 +29,8 @@ startmenu__:
 ;Set the default gbuf to saveSScreen and clear it
   ld hl,saveSScreen
   ld (gbuf_temp),hl
-  ld (BufPtr),hl
-  ld (GrayBufPtr),hl
+  ld (buf_ptr),hl
+  ld (graybuf_ptr),hl
   call ZeroMem768
 
 ;Set speed to 6MHz, take advantage of A=0 fom ZeroMem768
@@ -57,7 +57,7 @@ startmenu__:
   call GPutSS
 ;Options
   ld hl,58
-  ld (TextRow),hl
+  ld (text_row),hl
   call GPutSI
   .db "     AppV Asm  Exit Hook",0
 ;draw the bars between the options
@@ -325,7 +325,7 @@ draw_var_name:
   add a,11    ;y coord
   ld c,a
   ld b,4
-  ld (textRow),bc
+  ld (text_row),bc
   xor a
   ld (OP1+9),a
   or (hl)
@@ -337,7 +337,7 @@ _:
   ld hl,OP1+1
   call GPutS
   ld a,16
-  ld (textCol),a
+  ld (text_col),a
   ld a,(OP1)
   cp 15h
   ld hl,s_appv

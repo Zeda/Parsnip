@@ -89,14 +89,14 @@ add_str_ref:
   inc bc
   call alloc
   ;HL points to where to write the data
-  ld (tempword1),hl
+  ld (temp_word_1),hl
   ld d,h
   ld e,l
   ld (hl),type_str
   inc hl
   pop bc
   dec bc
-  ld (tempword2),bc
+  ld (temp_word_2),bc
   ld (hl),c
   inc hl
   ld (hl),b
@@ -112,8 +112,8 @@ add_str_ref:
   pop hl
   ldir
 
-  ld de,(tempword1)
-  ld bc,(tempword2)
+  ld de,(temp_word_1)
+  ld bc,(temp_word_2)
   ld a,type_str_ref
   jp pushoperand_ref
 

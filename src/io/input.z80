@@ -10,8 +10,8 @@ cursorblink = 7
 
 curcount    = scrap
 penTemp     = curcount+1
-textRow_base= penTemp+2
-mode_box_height  = textRow_base+2
+text_row_base= penTemp+2
+mode_box_height  = text_row_base+2
 mode_box_width   = mode_box_height+1
 input_end_text   = mode_box_width+1
 
@@ -21,8 +21,8 @@ input:
   ld (input_end_text),de
 
 ;Save the text pointer for when we clear input.
-  ld hl,(textRow)
-  ld (textRow_base),hl
+  ld hl,(text_row)
+  ld (text_row_base),hl
 
 ;set up the input buffer
   ld hl,(input_base)
@@ -79,10 +79,10 @@ _:
   ld (flags+keyflags),a
 
 ;Set text mode to overwrite, but save original settings
-  ld a,(OutputLogic)
+  ld a,(text_logic)
   push af
   xor a
-  ld (OutputLogic),a
+  ld (text_logic),a
 
 ;Clear out any keypresses
   out (1),a
@@ -101,14 +101,14 @@ _:
 
 ;Restore text coords
   ld hl,(penTemp)
-  ld (textRow),hl
+  ld (text_row),hl
 
 ;Get input
   call inputloop
 
 ;Restore text logic
   pop af
-  ld (OutputLogic),a
+  ld (text_logic),a
 
 ;Remove the mode box
   ld hl,(mode_box_height)
@@ -130,7 +130,7 @@ _:
   ld hl,(input_base)
   ret
 inputloop:
-  ld hl,(textRow)
+  ld hl,(text_row)
   ld (penTemp),hl
   res cursorblink,(iy+keyflags)
   ld a,CUR_COUNT_RESET
@@ -154,7 +154,7 @@ input_key_loop:
   call inp_VPutMap
   call inp_disp
   ld hl,(penTemp)
-  ld (textRow),hl
+  ld (text_row),hl
 _:
   ld hl,getKeyDebounce
   ld (prev_page_call_address),hl
@@ -165,7 +165,7 @@ _:
   ld a,' '
   call inp_VPutMap
   ld hl,(penTemp)
-  ld (textRow),hl
+  ld (text_row),hl
   pop af
   cp 9
   ret z
@@ -204,7 +204,7 @@ _:
 
 ;Restore text coords
   ld hl,(penTemp)
-  ld (textRow),hl
+  ld (text_row),hl
   ret
 input_clear:
   call +_
@@ -271,16 +271,16 @@ _:
   jp pe,-_
 input_del_finish:
   ld hl,(penTemp)
-  ld (textRow),hl
+  ld (text_row),hl
   scf
   ret
 redraw_mode:
   call pushpop
 ;Draw the input mode
-  ld hl,(textRow)
+  ld hl,(text_row)
   push hl
-  ld a,(GrayRotate)
-  and $18
+  ld a,(text_mode)
+  or a
   jr z,+_
   ld hl,mode_box_width
   ld a,98
@@ -291,7 +291,7 @@ redraw_mode:
 _:
   ld hl,$1700
 mode_coords_computed:
-  ld (textRow),hl
+  ld (text_row),hl
 
   ld a,(flags+keyflags)
   ld l,a
@@ -329,12 +329,12 @@ _:
 
 ;  ld hl,$5B01
 ;  ld hl,$1701
-;  ld (textRow),hl
+;  ld (text_row),hl
   call inp_VPutMap
   call inp_disp
 no_change_input_mode:
   pop hl
-  ld (textRow),hl
+  ld (text_row),hl
   ret
 draw_modebox:
   ld hl,(mode_box_height)
@@ -359,21 +359,21 @@ inp_disp:
   ld (prev_page_call_address),hl
   jp prev_page_call
 input_ON:
-  ld hl,ONErr
+  ld hl,err_ON
   ld (prev_page_call_address),hl
   call prev_page_call
   jr inp_disp
 inp_dispstr:
 ;Reset text coords
-  ld hl,(textRow_base)
-  ld (textRow),hl
+  ld hl,(text_row_base)
+  ld (text_row),hl
 
 ;Draw the current input
   ld hl,(input_base)
   call inp_VPutTokS
 
 ;Save the text coordinate
-  ld hl,(textRow)
+  ld hl,(text_row)
   ld (penTemp),hl
 
 ;Draw a blank space:

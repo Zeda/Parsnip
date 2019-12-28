@@ -88,10 +88,10 @@ PrevVAT_valid_with_start:
 ;returns z flag is no variable is found.
 ;First, set the last valid to 0
   xor a
-  ld (TempWord2),a
-  ld (TempWord2+1),a
+  ld (temp_word_2),a
+  ld (temp_word_2+1),a
   call +_
-  ld hl,(TempWord2)
+  ld hl,(temp_word_2)
   ld a,h
   or l
   ld (VATPtr),hl
@@ -111,7 +111,7 @@ _:
   pop de
   jr nz,$+5
 _:
-  ld (TempWord2),hl
+  ld (temp_word_2),hl
   push de
   call NextVAT_valid
   ld hl,(VATPtr)

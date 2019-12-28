@@ -2,14 +2,14 @@ PutSS:
   ld d,a
   jr GPutS+2
 GPutSS:
-  ld (textRow),bc
+  ld (text_row),bc
 ;===============================================================
 GPutS:
 ;===============================================================
 ;Inputs:
 ;     HL points to a zero terminated string to display
-;     (textRow) is the pixel row to draw at
-;     (textCol) is the text column to draw at (0 to 23)
+;     (text_row) is the pixel row to draw at
+;     (text_col) is the text column to draw at (0 to 23)
 ;Outputs:
 ;     HL points to the ending byte
 ;     BC is the size of the string
@@ -40,21 +40,21 @@ PutSC:
 ;===============================================================
 ;Inputs:
 ;     a is the char to draw
-;     (textRow) is the pixel row to draw at
-;     (textCol) is the text column to draw at (0 to 23)
+;     (text_row) is the pixel row to draw at
+;     (text_col) is the text column to draw at (0 to 23)
 ;===============================================================
   ld b,a
-  ld a,(GrayRotate)
-  and 18h
+  ld a,(text_mode)
+  or a
   jp z,+_
-  cp 8
+  dec a
   jp z,VPutC
-  cp 10h
+  dec a
   jp z,VPutSC
   jp OmniCalcFont
 _:
   push bc
-  ld bc,(textRow)
+  ld bc,(text_row)
   ld a,b
   cp 24
   ld a,c
@@ -70,9 +70,9 @@ _:
 _:
   ld c,a
   inc b
-  ld (textRow),bc
+  ld (text_row),bc
   dec b
-  ld hl,(FontPointer)
+  ld hl,(font_ptr)
   pop af
 ;===============================================================
 PutFS:
@@ -101,7 +101,7 @@ PutFS:
   push af
   ld c,a
   add hl,bc
-  ld bc,(BufPtr)
+  ld bc,(gbuf_temp)
   add hl,bc
   ld bc,060Ch
 ;==========================================
@@ -113,7 +113,7 @@ PutFS:
   call GraphToLCD
   pop hl
   pop bc
-  ld a,(TextPauseTime)
+  ld a,(text_delay)
   ei
 _:
   halt
@@ -187,7 +187,7 @@ OmniCalcFont:
   add hl,bc
   add hl,hl
   add hl,bc
-  ld bc,(FontPointer)
+  ld bc,(font_ptr)
   add hl,bc
   ld de,OP1
   ld b,7
@@ -208,7 +208,7 @@ VPutSC:
 ;    B is the char to draw
   ld a,b
 ;  cp 20h     ;no idea why this is here?
-  ld hl,(FontPointer)
+  ld hl,(font_ptr)
   ld c,b
   ld b,0
   add hl,bc
@@ -235,31 +235,97 @@ _:
 VPutC:
 ;Inputs:
 ;    B is the char to draw
-  ld hl,(FontPointer)
-  ld de,255
+  ld hl,(font_ptr)
+
+;The first byte is the height of the font
+  ld e,(hl)
+  inc hl
+  ld d,0
+
+#ifdef INDEX_VFONT
+  ld a,b
+  sub 32
+  jr c,+_
+  ld b,a
+  ld hl,(vfont_index)
+  sub 16
+  jr c,+_
+  ld b,a
+  ld hl,(vfont_index+2)
+  sub 16
+  jr c,+_
+  ld b,a
+  ld hl,(vfont_index+4)
+  sub 32
+  jr c,+_
+  ld b,a
+  ld hl,(vfont_index+6)
 _:
-  inc e
-  add hl,de
+  inc b
+  call lookupchar_vfont
+#else
+  ;E is the height, assume non-zero
+  ;HL points to the font data
+  ;B is the char
+  inc b
+  jr vputc_loc_loop_end
+vputc_loc_loop:
   ld a,(hl)
-  ;a is w,h in nibbles
-  and 15 ;height
-  inc a  ;1..16 is enough
-  ld e,a
-  djnz -_
-  ld d,e  ;height->d
-  ld e,(hl) ;now width
-  srl e \ srl e
-  srl e \ srl e ;->low nibble, width 0..9
+  inc hl
+  dec a
+  jp m,vputc_loc_loop_end
+_:
+  add hl,de
+  sub 8
+  jr nc,-_
+vputc_loc_loop_end:
+  djnz vputc_loc_loop
+#endif
+  ld d,e
+  ld e,(hl)
   inc hl
   ex de,hl
 VputSCStepIn:
+  bit InvertTextFlag,(iy+UserFlags)
+  jr z,VputSCStepIn_postinvert
+  ;need to invert the text data
+  ;DE points to the sprite
+  ;H is height
+  ;L is width
   push hl
-  ld bc,(TextRow)
+
+  ld b,h
+  ;get the mask to invert with
+  ld a,l
+  ld hl,spritemask
+  add a,l
+  ld l,a
+  jr nc,+_
+  inc h
+_:
+  ld c,(hl)
+  ld hl,OP1
+_:
+  ld a,(de)
+  xor c
+  ld (hl),a
+  inc hl
+  inc de
+  djnz -_
+  ld de,OP1
+  pop hl
+VputSCStepIn_postinvert:
+  push hl
+  ld bc,(text_row)
   ld a,b \ add a,l
   cp 97
   jr c,+_
+  ;We need to increment if font is variable-width
+  ld a,(text_mode)
+  dec a
+  sub 1
   ld a,c
-  add a,h \ ld c,a
+  adc a,h \ ld c,a
   ld a,l \ ld b,0
 _:
   ld l,a
@@ -271,16 +337,17 @@ _:
 _:
   ld h,l
   ld l,a
-  ld (TextRow),hl
-;  ld hl,(BufPtr)
+  ld (text_row),hl
+;  ld hl,(buf_ptr)
 ;  ld (gbuf_temp),hl
   pop hl
   ld a,7
   add a,l
   and %11111000
+  ret z
   rra
   rra
   rra
   ld l,a
-  ld a,(OutputLogic)
+  ld a,(text_logic)
   jp sprite

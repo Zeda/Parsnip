@@ -1,8 +1,8 @@
 ;This is the code to open up and execute code from a module.
-#define binmin    TempWord4
-#define binmax    TempWord5
-#define baseptr   TempWord2
-#define basepage  TempWord3
+#define binmin    temp_word_4
+#define binmax    temp_word_5
+#define baseptr   temp_word_2
+#define basepage  temp_word_3
 
 
 module:
@@ -164,9 +164,9 @@ module_not_found:
   or a
   ret
 
-#undefine binmin    TempWord4
-#undefine binmax    TempWord5
-#undefine baseptr   TempWord2
-#undefine basepage  TempWord3
+#undefine binmin    temp_word_4
+#undefine binmax    temp_word_5
+#undefine baseptr   temp_word_2
+#undefine basepage  temp_word_3
 
 ;852 bytes left up to here

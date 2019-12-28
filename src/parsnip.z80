@@ -56,7 +56,7 @@ SelectedProg:
 
 SelectedProgOP1:
   ld hl,gbuf
-  ld (BufPtr),hl
+  ld (buf_ptr),hl
   bcall(_ChkFindSym)
   ret c
   ld hl,cmdShadow+2
@@ -68,7 +68,7 @@ SelectedProgOP1:
   cp (hl)
   jp z,EndHook_prepush
 _:
-  ld a,(TempWord3)
+  ld a,(temp_word_3)
   or a
   jr z,ExecOP1
 ;Here we need to move the code to RAM.
@@ -78,14 +78,14 @@ _:
 
 ;Now we create the var
   ld a,16h
-  ld hl,(TempWord4)
+  ld hl,(temp_word_4)
   bcall(_CreateVar)
   inc de
   inc de
 
 ;Copy the source to RAM
 ;If size is 0, just exit.
-  ld bc,(TempWord4)
+  ld bc,(temp_word_4)
   ld a,b
   or c
   jr nz,+_
@@ -93,8 +93,8 @@ _:
   ret
 _:
 
-  ld hl,(TempWord5)
-  ld a,(TempWord3)
+  ld hl,(temp_word_5)
+  ld a,(temp_word_3)
   call nz,ReadArc
 
 ;Now we copy the temp var's name back to OP1 and call it good :)
@@ -124,8 +124,6 @@ parse_via_ptr:
   ld (progStart),hl
   add hl,bc
   ld (progEnd),hl
-  ld h,a \ ld l,a
-  ld (parseError),hl
 grazh:
   call SetUpData
   call progmeta
@@ -135,7 +133,7 @@ grazh:
 ParserNext:
   bit OnBlockFlag,(iy+UserFlags)
   call z,CheckStatus
-  call z,ONErr
+  call z,err_ON
   ld de,ParserNext
   push de
 ParseArg:
@@ -648,7 +646,17 @@ exec_BB:
   ld a,(hl)
   cp $31    ;e token
   jr z,exec_e
+
+; Check if it is lowercase
+  cp $B0
+  jr c,+_
+  cp $CB
+  jp c,exec_var_pre
+_:
+
+
   jp ErrBadToken
+
 exec_e:
   inc hl
   ld (parsePtr),hl
@@ -696,14 +704,14 @@ eval_pause:
 _:
   bit OnBlockFlag,(iy+UserFlags)
   call z,CheckStatus
-  call z,ONErr
+  call z,err_ON
   call GetKeyDebounce
   cp 9
   jr nz,-_
 _:
   bit OnBlockFlag,(iy+UserFlags)
   call z,CheckStatus
-  call z,ONErr
+  call z,err_ON
   call GetKeyDebounce
   or a
   jr nz,-_
@@ -1002,7 +1010,6 @@ _:
 
 eval_sto:
   call popoperand_var
-  sub 'A'
   add a,a
   ld hl,pvars
   add a,l
@@ -1065,7 +1072,6 @@ eval_var_ui16:
   jp pushoperand_ui16
 
 getvar_ui16:
-  sub 'A'
   add a,a
   ld hl,pvars
   add a,l
@@ -1086,18 +1092,73 @@ getvar_ui16:
   ld d,(hl)
   ret
 
-
+exec_var_pre:
+  ld a,$BB
 exec_var:
+  call get_var_by_name  ;returns HL pointing to the byte after the name, A is its index
+  ld (parsePtr),hl
   jp pushoperand_var
 
-;   ld b,(hl)
-;   push bc
-;   call pushoperand_var
-;   pop af
-;   cp $06    ; [
-;   ret nz
-; ;Now push '[' to the opstack and proceed
-;   ret
+get_var_by_name:
+;Input: A is the first byte of te name, HL points to the next
+;Output: HL pointing to the byte after the name, A is its index
+
+;For now, keeping it really simple
+;smallEditRam can only store 54 pointers
+
+;convert the name to ASCII in OP1
+;Since we are only allowing alphanumerics, we'll use a fast, custom routine
+;so that we don't need to use a bcall
+  call tok_to_alnum
+  jp c,err_bad_name
+
+;Make sure the first char is alphabetic (not numeric)
+  cp '0'+1
+  jp c,err_bad_name
+
+; For now, we're only allowing single-character names
+  sub 'A'
+  cp 32
+  jr c,+_
+  sub 5
+_:
+  cp 54
+  ret c
+  jp err_mem
+
+tok_to_alnum:
+;If it is a lowercase token, it will start with $BB
+;return nc if it is alphanumeric
+  cp $BB
+  jr z,tok_to_alnum_BB
+
+;Now check if it is a number
+  cp '0'
+  ret c
+  cp '9'+1
+  ccf
+  ret nc    ;quits here since it is a number
+
+;Now check if it is uppercase
+  cp 'A'
+  ret c
+  cp 'Z'+2
+  ccf
+  ret
+
+tok_to_alnum_BB:
+;We only need the lowercase letters
+  ld a,(hl)
+  inc hl
+  cp $B0
+  ret c
+  cp $CB
+  ccf
+  ret c
+  cp $BB
+  adc a,'a'-$B0-1
+  ccf
+  ret
 
 
 exec_var_index:
@@ -1109,8 +1170,8 @@ exec_var_index:
 get_var_type:
   dec hl
 get_var_ptr:
+;returns z if it is a null pointer
   ld a,(hl)
-  sub 'A'
   add a,a
   ld hl,pvars
   add a,l
@@ -1121,11 +1182,9 @@ get_var_ptr:
   inc hl
   ld h,(hl)
   ld l,a
+  or h
   ld a,(hl)
   ret
-
-
-
 
 eval_neg:
   ld hl,(operandstack_ptr)
@@ -1499,7 +1558,6 @@ popraw_var:
   dec hl
   ld a,(hl)
   ld (operandstack_ptr),hl
-  sub 'A'
   add a,a
   ld hl,pvars
   add a,l
@@ -1575,6 +1633,7 @@ popvar_to:
   dec hl
   ld (operandstack_ptr),hl
   call get_var_ptr
+  jp z,err_unknown
   inc hl
   ex de,hl
   dec a
@@ -1590,7 +1649,9 @@ _:
   ret
 
 pushoperand_var:
-;pushes DE to the operand stack
+;pushes the index of a var to the operand stack
+;A is the index
+;
 #ifdef STACK_SAFE
   ld bc,(operandstack_ptr)
   inc bc
@@ -1950,9 +2011,9 @@ _:
   call TSA
   ld bc,(cmdShadow)
   ;need to save A:HL, BC
-  ld (TempWord3),a
-  ld (TempWord4),bc
-  ld (TempWord5),hl
+  ld (temp_word_3),a
+  ld (temp_word_4),bc
+  ld (temp_word_5),hl
 _:
   ld bc,4
   call TSA

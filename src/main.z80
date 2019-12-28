@@ -11,9 +11,9 @@ _:
   bcall(_JForceCmdNoChar)
 StartMenu:
   ld bc,0
-  ld (TempWord3),a
-  ld (TempWord4),bc
-  ld (TempWord5),hl
+  ld (temp_word_3),a
+  ld (temp_word_4),bc
+  ld (temp_word_5),hl
   call FindGVarData
   ld a,b \ or a
   jr nz,+_

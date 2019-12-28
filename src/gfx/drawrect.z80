@@ -1,5 +1,5 @@
-bordermask = TempWord2
-fillmask   = TempWord3
+bordermask = temp_word_2
+fillmask   = temp_word_3
 leftmask   = bordermask
 rightmask  = fillmask
 rect:
@@ -30,7 +30,7 @@ rect:
 ;Outputs:
 ;   BC is the count for the pixel test methods.
 ;Destroys:
-;   AF,BC,DE,HL, TempWord1, TempWord2
+;   AF,BC,DE,HL, temp_word_1, temp_word_2
 ;   IX is destroyed in the pixel count and shifting routines.
   or a
   jp z,rect_wbwf

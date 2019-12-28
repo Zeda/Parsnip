@@ -1,3 +1,8 @@
+err_unknown:
+err_bad_name:
+  ld a,13
+  jr Err
+
 err_label_not_found:
   ld a,12
   jr Err
@@ -36,10 +41,10 @@ ErrStackOverflow_push:
 ErrBadToken:
   ld a,3
   jr Err
-ONErr:
+err_ON:
   ld a,2
   jr Err
-ErrMEM:
+err_mem:
   ld a,1
   .db $FE
 err_fatal:
@@ -92,7 +97,7 @@ _:
   ld hl,(parsePtr)
   dec hl
   ld (parsePtr),hl
-  ld sp,(SPSave)
+  ld sp,(sp_save)
   di
   im 1
   or a
@@ -123,7 +128,7 @@ error_LUT:
   .dw s_err_stackoverflow_operands
   .dw s_err_heap_overflow
   .dw s_err_label_not_found
-  ; .dw s_err_
+  .dw s_err_bad_name
   ; .dw s_err_
   ; .dw s_err_
   ; .dw s_err_
@@ -158,3 +163,5 @@ s_err_heap_overflow:
   .db "HeapOverflow",0
 s_err_label_not_found:
   .db "LblNotFound",0
+s_err_bad_name:
+  .db "Bad Name",0

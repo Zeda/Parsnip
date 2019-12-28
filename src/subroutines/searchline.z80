@@ -14,13 +14,13 @@ SearchLine:
   dec de \ inc d \ inc e
 ;  or a
 _:
-  ld (TempWord1),hl
+  ld (temp_word_1),hl
   cpir
   jp po,+_
   dec e \ jr nz,-_
   dec d \ jr nz,-_
 _:
   scf
-  ld de,(TempWord1)
+  ld de,(temp_word_1)
   sbc hl,de
   ret

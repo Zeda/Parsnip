@@ -2,7 +2,7 @@
 #define FONT_HEIGHT 6
 ;#define TEXT_PAD_TOP    ;comment if there is not a row of padding above the text
 ;#define TEXTCOORD_YX      ;define if textcoord is Y then X (TI-OS is Y then X for small font, large font and some custom text routines use the opposite)
-textcoord = textRow
+textcoord = text_row
 
 #macro LCD_Update()
   di

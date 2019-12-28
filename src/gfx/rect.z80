@@ -1,11 +1,11 @@
 ;Issues:
 ;  For the ones with border and fill different, need to actually check the top and bottom border weren't clipped
-;  Status is stored at TempWord1+1, just not used yet.
+;  Status is stored at temp_word_1+1, just not used yet.
 
-#define rightbordermask TempWord2
-#define leftbordermask TempWord2+1
-#define toprightmask TempWord3
-#define topleftmask TempWord3+1
+#define rightbordermask temp_word_2
+#define leftbordermask temp_word_2+1
+#define toprightmask temp_word_3
+#define topleftmask temp_word_3+1
 rect:
 ;Inputs:
 ;     A is the type of rectangle to draw
@@ -28,7 +28,7 @@ rect:
 
 ;Need to generate a top/bottom left and right mask
 ;Need to generate a left and right mask
-  ld (TempWord1),a    ;saving the method
+  ld (temp_word_1),a    ;saving the method
   ld a,e
   and 7
   ld hl,spritemask
@@ -118,7 +118,7 @@ _:
 ;   bit 0 means bottom-clipped
 ;   bit 1 means top-clipped
   ld a,l
-  ld (TempWord1+1),a    ;Store clipping flags
+  ld (temp_word_1+1),a    ;Store clipping flags
 ;Now We calculate where to begin drawing.
 ;Note that this will always start on screen due to how we performed clipping
   ld a,b
@@ -151,7 +151,7 @@ _:
 ;HL points to where to start drawing
 ;D is bytes spanned
 
-  ld a,(TempWord1)
+  ld a,(temp_word_1)
   or a
   jp z,rect_wbwf
   dec a

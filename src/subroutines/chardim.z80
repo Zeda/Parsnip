@@ -1,22 +1,21 @@
-chardim:
+;chardim:
 ;Get the height and width of a char in the current font.
 ;Input: A is the char
 ;Output: B is the width, C is height
 ;Destroys: A
   ld b,a
-  ld a,(GrayRotate)
-  sub 8
-  and $18
+  ld a,(text_mode)
+  dec a
   jp z,var_width_size
   ld bc,$0608
-  cp $10
+  cp 2
   ret z
   ld bc,$0406
   ret
 var_width_size:
   push hl
   push de
-  ld hl,(FontPointer)
+  ld hl,(font_ptr)
   ld d,a
   .db $C2  ;start of `jp nz,*`
 _:
