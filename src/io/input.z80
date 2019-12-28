@@ -15,6 +15,9 @@ mode_box_height  = text_row_base+2
 mode_box_width   = mode_box_height+1
 input_end_text   = mode_box_width+1
 
+input_mode_LUT:
+.db " ",$1E,"Aa"
+
 input:
 ;Inputs: DE points to the ending string
 ;Save the location of the ending string
@@ -410,7 +413,7 @@ inp_VPutTokS:
   jr inp_VPutTokS
 inp_VPutS:
   push hl
-  ld hl,GPutS
+  ld hl,PutS
   ld (prev_page_call_address),hl
   pop hl
   jp prev_page_call
@@ -420,5 +423,3 @@ inp_VPutMap:
   ld (prev_page_call_address),hl
   pop hl
   jp prev_page_call
-input_mode_LUT:
-.db " ",$1E,"Aa"
