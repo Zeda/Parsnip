@@ -152,7 +152,7 @@ CommandJumpTable:
 .dw ErrBadToken    ; 90
 .dw ErrBadToken    ; 91
 .dw ErrBadToken    ; 92
-.dw ErrBadToken    ; 93
+.dw exec_text      ; 93
 .dw ErrBadToken    ; 94
 .dw ErrBadToken    ; 95
 .dw ErrBadToken    ; 96
@@ -411,7 +411,7 @@ evalLUT:
 .dw ErrBadToken    ; 90
 .dw ErrBadToken    ; 91
 .dw ErrBadToken    ; 92
-.dw ErrBadToken    ; 93
+.dw eval_text      ; 93
 .dw ErrBadToken    ; 94
 .dw ErrBadToken    ; 95
 .dw ErrBadToken    ; 96
