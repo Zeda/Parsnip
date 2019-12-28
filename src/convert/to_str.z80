@@ -101,8 +101,8 @@ tstr_ref_convert_to_str:
 
 ;DE points to the string
 ;BC is the size of the existing string
-;For now, copy it to OP1
-  ld hl,OP1
+;For now, copy it to xOP2
+  ld hl,xOP2
   ex de,hl
   ld a,b
   or c
@@ -112,12 +112,14 @@ tstr_ref_convert_to_str:
   ret
 _:
   call tokstr2ascii
-  ld hl,OP1
+  ld hl,xOP2
   ret
 
 
 str_convert_to_str:
   ex de,hl
+  inc hl
+  inc hl
   ret
 str_ref_convert_to_str:
   ex de,hl
