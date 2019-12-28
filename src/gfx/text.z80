@@ -1,40 +1,26 @@
-PutSS:
-  ld d,a
-  jr GPutS+2
-GPutSS:
+PutS_at:
   ld (text_row),bc
-;===============================================================
-GPutS:
-;===============================================================
-;Inputs:
-;     HL points to a zero terminated string to display
-;     (text_row) is the pixel row to draw at
-;     (text_col) is the text column to draw at (0 to 23)
-;Outputs:
-;     HL points to the ending byte
-;     BC is the size of the string
-;     A is 0
-;     z flag is set
-;     c flag reset
-;Destroys:
-;     DE
-;===============================================================
-  ld d,0    ;gotta keep this here for PutSS
-  ld bc,0
+  jr PutS
+
 _:
-  ld a,(hl)
-  cp d
-  ret z
-  push de
-  inc bc
-  push bc
-  inc hl
   push hl
   call PutSC
   pop hl
-  pop bc
-  pop de
-  jr -_
+PutS:
+;Inputs:
+;     HL points to a zero terminated string to display
+;     (text_row) is the pixel row to draw at
+;     (text_col) is the pixel col to draw at
+;Outputs:
+;     HL points to the byte after the string
+;     A is 0
+;Destroys:
+;     DE,BC
+  ld a,(hl)
+  inc hl
+  or a
+  jr nz,-_
+  ret
 ;===============================================================
 PutSC:
 ;===============================================================
@@ -207,7 +193,6 @@ VPutSC:
 ;Inputs:
 ;    B is the char to draw
   ld a,b
-;  cp 20h     ;no idea why this is here?
   ld hl,(font_ptr)
   ld c,b
   ld b,0
@@ -338,8 +323,6 @@ _:
   ld h,l
   ld l,a
   ld (text_row),hl
-;  ld hl,(buf_ptr)
-;  ld (gbuf_temp),hl
   pop hl
   ld a,7
   add a,l

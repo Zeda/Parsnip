@@ -54,11 +54,11 @@ startmenu__:
 ;Header text (version number)
   ld hl,StrVersion
   ld bc,$0301
-  call GPutSS
+  call PutS_at
 ;Options
   ld hl,58
   ld (text_row),hl
-  call GPutSI
+  call PutSI
   .db "     AppV Asm  Exit Hook",0
 ;draw the bars between the options
   ld de,$0111
@@ -141,6 +141,9 @@ main_menu_loop:
   call DrawRectToGraph
 
 main_menu_ui_loop:
+  in a,(4)
+  and 8
+  ret z
   call GetKeyDebounce
   or a
   jr z,main_menu_ui_loop
@@ -335,7 +338,7 @@ draw_var_name:
 _:
   call PutSC
   ld hl,OP1+1
-  call GPutS
+  call PutS
   ld a,16
   ld (text_col),a
   ld a,(OP1)
@@ -344,4 +347,4 @@ _:
   jr z,+_
   ld hl,s_prog
 _:
-  jp GPutS
+  jp PutS
