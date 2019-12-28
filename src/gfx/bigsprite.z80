@@ -1,4 +1,5 @@
-#define spritetmp 8000h
+
+spritetmp     = 8000h ;5 bytes
 sprite_width  = spritetmp+0
 sprite_x      = spritetmp+1
 sprite_mask0  = spritetmp+2
