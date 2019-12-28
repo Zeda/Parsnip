@@ -127,6 +127,7 @@ parse_via_ptr:
 grazh:
   call SetUpData
   call progmeta
+  call heap_init
   di
   ld hl,BreakProgram
   push hl
@@ -198,9 +199,10 @@ _:
 ;Now if there are any more operands, throw an error
   call isoperandstack_empty
   ret z
-  jp err_too_many_args
+  call err_too_many_args
 
 isoperandstack_empty:
+  or a
   ld hl,(operandstack_ptr)
   ld de,(operandstack_bottom)
   sbc hl,de
@@ -360,6 +362,7 @@ exec_full:
 exec_clrdraw:
 exec_clrhome:
 exec_dispgraph:
+exec_text:
 exec_putsprite:
 exec_getkey:
 exec_pixelon:
@@ -833,7 +836,7 @@ _:
 
 ;make sure that the operand is indeed a null byte
   cp (hl)
-  jp nz,err_too_many_args
+  call nz,err_too_many_args
 
 ;There is exactly one arg, so we'll shift BC bytes at HL+1, down to HL
   ld d,h
@@ -863,6 +866,22 @@ returnkeycode:
   call pop_end_of_params
   call GetKey
   jp pushoperand_ui8
+
+
+eval_text:
+  ld a,2
+  ld (text_mode),a
+  call popoperand_str
+  push hl
+  call popoperand_coord
+  ld (text_row),bc
+  call pop_end_of_params
+
+  ld hl,gbuf
+  ld (gbuf_temp),hl
+
+  pop hl
+  jp PutS
 
 
 eval_putsprite:
@@ -1253,7 +1272,7 @@ jumptableindex:
 
 ;First, make sure A does not exceed the size of the LUT
   cp (hl)
-  jp nc,err_bad_type
+  call nc,err_bad_type
   rla     ;c is set, so this does 2A+1 --> A
   add a,l
   ld l,a
@@ -1355,7 +1374,7 @@ _:
 
 pop_end_of_params:
   call is_end_of_args
-  jp nz,err_too_many_params
+  call nz,err_too_many_params
   ld (operandstack_ptr),hl
   ret
 
@@ -1393,6 +1412,16 @@ peekoperand_2:
   ld a,(hl)
   cp type_var
   jp z,get_var_type   ;destroys HL
+  ret
+
+peekoperand:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_var
+  ret nz
+  call peekvar
+  ld a,c
   ret
 
 peekvar:
@@ -2142,7 +2171,7 @@ FindGVarData:
 #ifdef include_LoadTSA
 #include "cmd/loadtsa.z80"
 #endif
-GPutSI:
+PutSI:
 ;     The string to display immediately follows the call
 ;       The string is zero terminated
 ;Outputs:
@@ -2151,7 +2180,7 @@ GPutSI:
   push de
   push bc
   push af
-  call GPutS
+  call PutS
   inc hl
   pop af
   pop bc
