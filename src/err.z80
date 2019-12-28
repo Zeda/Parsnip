@@ -93,6 +93,9 @@ _:
 	bcall(_clrTxtShd)
   bcall(_saveCmdShadow)
 
+;destroy the heap to save space
+  call heap_destroy
+
   pop af
   ld hl,(parsePtr)
   dec hl

@@ -31,15 +31,6 @@ SetUpData:
   ld (opstack_ptr),hl
   ld (hl),a
 
-;Set up heap pointers
-  ld hl,saveSScreen
-  ld (heap_ptr),hl
-  ld (heap_bottom),hl
-  inc h
-  inc h
-  inc h
-  ld (heap_top),hl
-
 ; Need to clear 108 bytes at pvars
   ld b,108
   ld hl,pvars
@@ -64,6 +55,7 @@ SetUpData:
   pop hl
   ld (sp_save),sp
   jp (hl)
+
 setupRAMdata:
 ;not speed critical
   ld de,8100h
@@ -71,3 +63,47 @@ setupRAMdata:
   ld bc,RAMCodeEnd-RAMCodeStart
   ldir
   ret
+
+heap_init:
+;Set up heap pointers
+  call create_heap
+  ld (heap_ptr),hl
+  ld (heap_bottom),hl
+  add hl,bc
+  ld (heap_top),hl
+  ret
+
+heap_destroy:
+  ld hl,heapvar_name
+  rst rMov9ToOP1
+  bcall(_ChkFindSym)
+  bcall(_DelVarArc)
+  ld hl,0
+  ld (heap_ptr),hl
+  ld (heap_bottom),hl
+  ld (heap_top),hl
+  ret
+
+create_heap:
+  ld hl,heapvar_name
+  rst rMov9ToOP1
+  bcall(_ChkFindSym)
+  jr nc,+_
+  ;It doesn't exist, so let's create it.
+  bcall(_MemChk)
+  ld bc,-20
+  add hl,bc
+  jp z,err_mem
+  jp nc,err_mem
+  ld a,22     ;temp program
+  bcall(_CreateVar)
+_:
+  ex de,hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+heapvar_name:
+  .db 22,"heap",0
