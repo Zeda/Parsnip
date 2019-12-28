@@ -69,6 +69,12 @@ Copies the contents of the graph screen to the LCD.
 ## Disp
 Displays a value on the homescreen.
 
+## Text()
+`Text(Y,X,value)`
+Displays a value on the graph screen at pixel coordinates, using a small font.
+
+***NOTE:** This might change in the future, specifically the default font and coordinate system for text.*
+
 ## Pause
 Waits for `[Enter]` to be pressed.
 
