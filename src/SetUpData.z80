@@ -31,6 +31,16 @@ SetUpData:
   ld (opstack_ptr),hl
   ld (hl),a
 
+;Set up values for variable names
+  ld h,a
+  ld l,a
+  ld (vars_count),hl
+  ld hl,saveSScreen
+  ld (var_names_base),hl
+  ld (var_names_ptr),hl
+  ld hl,saveSScreen+768
+  ld (var_names_top),hl
+
 ; Need to clear 108 bytes at pvars
   ld b,108
   ld hl,pvars

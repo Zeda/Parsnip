@@ -172,13 +172,17 @@ buf_ptr     = graybuf_ptr+2 ;2
 ;so they can be safely mapped to the same address.
 disjoint_context = buf_ptr+2
 
-operandstack_ptr     = disjoint_context
-operandstack_bottom  = operandstack_ptr+2
-operandstack_top     = operandstack_bottom+2
-opstack_ptr          = operandstack_top+2
-heap_ptr             = opstack_ptr+2
-heap_bottom          = heap_ptr+2
-heap_top             = heap_bottom+2
+operandstack_ptr    = disjoint_context
+operandstack_bottom = operandstack_ptr+2
+operandstack_top    = operandstack_bottom+2
+opstack_ptr         = operandstack_top+2
+heap_ptr            = opstack_ptr+2
+heap_bottom         = heap_ptr+2
+heap_top            = heap_bottom+2
+var_names_base      = heap_top+2
+var_names_ptr       = var_names_base+2
+var_names_top       = var_names_ptr+2
+vars_count          = var_names_top+2
 
 main_menu_cursor    = disjoint_context
 main_menu_cursor_max= main_menu_cursor+1

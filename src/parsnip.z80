@@ -1134,16 +1134,141 @@ get_var_by_name:
 ;Make sure the first char is alphabetic (not numeric)
   cp '0'+1
   jp c,err_bad_name
-
-; For now, we're only allowing single-character names
-  sub 'A'
-  cp 32
-  jr c,+_
-  sub 5
-_:
+  call +_
   cp 54
   ret c
   jp err_mem
+_:
+;saveSScreen has the table
+  ld (temp_word_1),a    ;first byte of the var name
+  ld b,h
+  ld c,l
+  ld hl,(vars_count)
+  ld ix,get_var_by_name_cmp
+  call binarysearch
+  jr nz,var_not_found
+  ;var was found, assume the index is safe
+  ld a,e
+  ld hl,(temp_word_2)
+  ret
+
+var_not_found:
+;However, DE is what the index should have been.
+  push de
+  ld hl,(var_names_base)     ;pointer to the LUT of var names
+  add hl,de
+  add hl,de
+  ;HL points to where to insert two bytes
+  ld de,(var_names_ptr)
+  ;WARNING! Need to make sure there is enough space avaialable!
+  ;need to move DE-HL bytes from DE-1 to DE+1
+  ;or a
+  ex de,hl
+  sbc hl,de
+  ld b,h
+  ld c,l
+  add hl,de
+  ld d,h
+  ld e,l
+  dec hl
+  inc de
+  push de
+  jr z,+_
+  lddr
+_:
+  pop hl
+  inc hl
+  ex de,hl
+  ld (hl),d
+  dec hl
+  ld (hl),e
+
+;Now, DE is where to write the name, but we also need to adjust all of the
+;var name pointers less than DE by +2.
+  ld bc,(vars_count)
+  inc bc
+  ld (vars_count),bc
+  ld hl,(var_names_base)
+var_names_adjust_loop:
+  ;now we read the pointers, any less than DE are incremented by 2
+  ld a,(hl)
+  cp e
+  inc hl
+  ld a,(hl)
+  sbc a,d
+  jr nc,+_
+  dec hl
+  ld a,(hl)
+  add a,2
+  ld (hl),a
+  inc hl
+  jr nc,+_
+  inc (hl)
+_:
+  cpi
+  jp pe,var_names_adjust_loop
+
+; Finally, we copy the string at parsePtr to DE, converting to ASCII
+  ld a,(temp_word_1)
+  ld (de),a
+  inc de
+  xor a
+  ld (de),a
+  inc de
+
+;We are only supporting single-char names at the moment
+  ld (var_names_ptr),de
+
+  pop de
+;Finally, we need to insert 2 null bytes into the var ptr LUT.
+  ld a,e      ;save the index in A
+
+
+  ld hl,(vars_count)
+  scf
+  sbc hl,de
+  jr z,+_
+  add hl,hl
+  ld b,h
+  ld c,l    ;number of bytes to shift
+  add hl,de
+  add hl,de
+  ld de,pvars
+  add hl,de
+  ld d,h
+  ld e,l
+  inc de
+  dec hl
+  lddr
+  ex de,hl
+  ld (hl),c
+  dec hl
+  ld (hl),c
+_:
+
+  ld hl,(parsePtr)
+  ret
+
+
+get_var_by_name_cmp:
+;HL is the input
+;DE is the var to watch
+;If match, save the end of the input in temp_word_2
+;
+; Make sure the first byte matches
+  ld a,(temp_word_1)
+  ex de,hl
+  add hl,hl
+  ld bc,saveSScreen
+  add hl,bc
+  ld c,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,c
+  cp (hl)
+  ld (temp_word_2),de
+  ret
+
 
 tok_to_alnum:
 ;If it is a lowercase token, it will start with $BB
@@ -2205,6 +2330,7 @@ DrawRectToGraph:
 #include "subroutines/CheckStatus.z80"
 #include "conversion/itoa_16.z80"
 #include "conversion/atoui32.z80"
+#include "search/binarysearch.z80"
 #include "subroutines/util.z80"
 #include "subroutines/searchlabel.z80"
 #include "parsnipdata.z80"
