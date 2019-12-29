@@ -1125,15 +1125,17 @@ get_var_by_name:
 ;For now, keeping it really simple
 ;smallEditRam can only store 54 pointers
 
-;convert the name to ASCII in OP1
 ;Since we are only allowing alphanumerics, we'll use a fast, custom routine
-;so that we don't need to use a bcall
+;so that we don't need to use a bcall to convert tokens to ASCII
   call tok_to_alnum
   jp c,err_bad_name
 
 ;Make sure the first char is alphabetic (not numeric)
-  cp '0'+1
+  cp '9'+1
   jp c,err_bad_name
+
+  cp 'D' \ jr z,$
+
   call +_
   cp 54
   ret c
@@ -1210,14 +1212,19 @@ _:
 
 ; Finally, we copy the string at parsePtr to DE, converting to ASCII
   ld a,(temp_word_1)
+  ld hl,(parsePtr)
+_:
+  ld (parsePtr),hl
   ld (de),a
   inc de
-  xor a
-  ld (de),a
-  inc de
-
-;We are only supporting single-char names at the moment
-  ld (var_names_ptr),de
+  ld a,(hl)
+  inc hl
+  call tok_to_alnum
+  jr nc,-_
+  ex de,hl
+  ld (hl),0
+  inc hl
+  ld (var_names_ptr),hl
 
   pop de
 ;Finally, we need to insert 2 null bytes into the var ptr LUT.
@@ -1245,7 +1252,6 @@ _:
   dec hl
   ld (hl),c
 _:
-
   ld hl,(parsePtr)
   ret
 
@@ -1259,16 +1265,39 @@ get_var_by_name_cmp:
   ld a,(temp_word_1)
   ex de,hl
   add hl,hl
-  ld bc,saveSScreen
+  ld bc,(var_names_base)
   add hl,bc
   ld c,(hl)
   inc hl
   ld h,(hl)
   ld l,c
   cp (hl)
-  ld (temp_word_2),de
+  ret nz
+
+; The first byte matches, so now we need to compare the rest of the bytes
+_:
+  ex de,hl
+  inc de
+  ld a,(hl)
+  ld b,h
+  ld c,l
+  inc hl
+  call tok_to_alnum
+  ex de,hl
+  jr c,end_of_input
+  cp (hl)
+  jr z,-_
+  ;this means it didn't match
   ret
 
+end_of_input:
+  ;now make sure (HL) is 0
+  xor a
+  cp (hl)
+  ret nz
+  ;we found a match, let's save the end-of-name
+  ld (temp_word_2),bc
+  ret
 
 tok_to_alnum:
 ;If it is a lowercase token, it will start with $BB
