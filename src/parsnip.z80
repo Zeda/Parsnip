@@ -1134,7 +1134,7 @@ get_var_by_name:
   cp '9'+1
   jp c,err_bad_name
 
-  cp 'D' \ jr z,$
+  ld (parsePtr),hl
 
   call +_
   cp 54
