@@ -185,6 +185,9 @@ _:
   jr nz,-_
   ret
 #ifdef speed
+#if ((-$)&255) < 30
+.fill ((-$)&255),0
+#endif
 ldirloop:
 ;n=16, (number of LDI instructions, use qty of 4,8,16,32,64)
     ldi
@@ -206,7 +209,6 @@ _ldirloop_end:
     ldi
     jp pe,ldirloop
     ret
-
 fastldir:
 ;copy BC bytes from HL to DE
 ;breaks even at 26 bytes
@@ -225,10 +227,10 @@ fastldir:
     ld hl,ldirloop
     add a,l
     ld l,a
-#if (ldirloop>>8)!=(_ldirloop_end>>8)
-    jr nc,$+3  ;these aren't needed if the ldirloop doesn't cross a 256 byte boundary. Can save 12cc on the above timings and 3 bytes.
-    inc h       ;
-#endif
+; #if (ldirloop>>8)!=(_ldirloop_end>>8)
+;     jr nc,$+3  ;these aren't needed if the ldirloop doesn't cross a 256 byte boundary. Can save 12cc on the above timings and 3 bytes.
+;     inc h       ;
+; #endif
 ;    pop af
     ex (sp),hl
     ret
