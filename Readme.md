@@ -2,6 +2,9 @@ This is a proof-of-concept. I basically gutted Grammer 2 and wrote a new parser.
 I did not bother to change most files.
 
 ![*Example with mixing types and variable storage*](https://i.imgur.com/2Nxgt7U.gif)
+![*Example with user input and sprites*](https://i.imgur.com/G35t78t.gif)
+![*Example with lists*](https://i.imgur.com/ttWTHxr.gif)
+
 
 # Install
 
