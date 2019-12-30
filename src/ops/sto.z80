@@ -21,6 +21,8 @@ eval_sto_LUT:
   .dw sto_str_ref
   .dw sto_single
   .dw sto_xfloat
+  .dw sto_list
+  .dw sto_list_ref
 _:
 
 
@@ -145,6 +147,65 @@ _:
   ld (hl),e
   inc hl
   ld (hl),d
+  ret
+
+sto_list_ref:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  .db $FE
+sto_list:
+  ex de,hl
+;HL points to the list data
+;BC is the size
+
+;save the pointer
+  push hl
+
+;Need to copy BC+2 bytes, so increment BC by 2 and save for later
+  inc bc
+  inc bc
+  push bc
+
+;Need to allocate BC+1 bytes (the +1 is for the type byte)
+  inc bc
+  call alloc
+  pop bc
+  pop de
+
+;Now BC is the number of bytes to copy
+;DE-2 is the data to start copying
+;HL points to the allocated region
+
+;save HL for later (need it for setting the var's pointer)
+  push hl
+
+;Write the type
+  ld (hl),type_list
+
+;Now we need to copy BC bytes at DE-2 to HL+1. BC is strictly non-zero.
+  inc hl
+  dec de
+  dec de
+  ex de,hl
+  ldir
+
+;restore the data pointer and the var pointer's pointer
+  pop de    ;data pointer
+  pop hl    ;pointer to the var's pointer
+
+;write the new value
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  inc hl
   ret
 
 

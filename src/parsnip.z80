@@ -424,26 +424,6 @@ exec_pow:
 
   ret
 
-
-exec_close_list:
-; There is a special case to take care of!
-; In the event of [stuff][index], we need to check if the next char to be parsed
-; is a '['. If so, need to store t_open_index instead of t_open_list
-;
-; As well, ']' can match '[' or t_open_index.
-; If it is an index:
-;     If the previous arg was a temp list, replace it with the sublist.
-;     Else replace the previous arg with an index variable, {t_index,t_var,.dw #, .dw upper, .dw lower}
-; Else need to allocate space for the list
-;     '[' is stored like a function, so find the start of the "function"
-;     arguments in the operandstack.
-;     Have to work backwards, also get the size of each element (needs to be
-;     evaluated)
-
-exec_close_index:
-eval_open_list:
-  jp err_syntax
-
 exec_close_parens:
 ;need to evaluate up to the open parens or function
 _:
@@ -483,6 +463,7 @@ opstackprecedence:
   pop af
   cp b
   ret c
+
 eval_func:
   push af
 
@@ -568,13 +549,150 @@ type_size_LUT:
   .db 1   ; 07 true
   .db 1   ; 08 false
   .db 5   ; 09 tstr_ref
-  .db 0   ; 0A type_raw
-  .db 0   ; 0B type_str
-  .db 3   ; 0C type_str_ref
-  .db 5   ; 0D type_single
-  .db 11  ; 0E type_xfloat
+  .db 0   ; 0A raw
+  .db 0   ; 0B str
+  .db 3   ; 0C str_ref
+  .db 5   ; 0D single
+  .db 11  ; 0E xfloat
+  .db 0   ; 0F list
+  .db 5   ; 10 list_ref
 
 type_size_LUT_end:
+
+exec_close_list:
+exec_close_index:
+; There is a special case to take care of!
+; In the event of [stuff][index], we need to check if the next char to be parsed
+; is a '['. If so, need to store t_open_index instead of t_open_list
+;
+; As well, ']' can match '[' or t_open_index.
+; If it is an index:
+;     If the previous arg was a temp list, replace it with the sublist.
+;     Else replace the previous arg with an index variable, {t_index,t_var,.dw #, .dw upper, .dw lower}
+; Else need to allocate space for the list
+;     '[' is stored like a function, so find the start of the "function"
+;     arguments in the operandstack.
+;     Have to work backwards, also get the size of each element (needs to be
+;     evaluated)
+
+;Make sure the opstack has a `[` on it
+;WARNING! Does not evaluate an expression on the last argument!
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  cp $06
+  jp nz,err_syntax
+  inc hl
+  ld (opstack_ptr),hl
+
+
+; Initialize the list field (and set it to size 0)
+  ld hl,(heap_ptr)
+  ld (hl),type_list_ref
+  inc hl
+  xor a
+  ld (hl),a
+  inc hl
+  ld (hl),a
+  inc hl
+  ld (hl),a
+  inc hl
+  ld (hl),a
+  inc hl
+  ld (heap_ptr),hl
+  ld h,a
+  ld l,a
+  ld (temp_word_1),hl
+
+  ld hl,(heap_top)
+  push hl
+  jr c,write_list_start
+write_list_loop:
+  ld hl,temp_word_1
+  inc (hl)
+  jr nz,+_
+  inc hl
+  inc (hl)
+_:
+  call pop_operand
+  pop hl
+  or a
+  sbc hl,bc
+  push hl
+  ;make sure HL>=heap_ptr
+  push de
+  ld de,(heap_ptr)
+  add a,1   ;resets carry flag and sets A to the type
+  sbc hl,de
+  jp c,err_mem
+  add hl,de
+  pop de
+
+  ld (hl),a
+  push hl
+  ld hl,type_size_LUT
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  pop hl
+  or a
+  jr nz,+_
+  ;need to write the size bytes still
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+_:
+  cpi
+  jp po,write_list_start
+  ex de,hl
+
+  ldir
+
+write_list_start:
+  call is_end_of_args
+  jr nz,write_list_loop
+
+  ;pop off the end-of-arg:
+  ld (operandstack_ptr),hl
+
+  pop hl    ;start of the list data
+  ld de,(temp_word_1)   ;number of elements
+  dec hl
+  ld (hl),d
+  dec hl
+  ld (hl),e
+  ex de,hl
+
+  ld hl,(heap_top)
+  or a
+  sbc hl,de
+  ld b,h
+  ld c,l
+  ld hl,(heap_ptr)
+  dec hl
+  dec hl
+  dec hl
+  dec hl
+  push hl
+  push bc
+  ld (hl),c
+  inc hl
+  ld (hl),b
+  inc hl
+  ex de,hl
+  ldir
+  ex de,hl
+  ld (heap_ptr),hl
+  pop bc
+  pop de
+  dec de
+  ld a,type_list_ref
+  jp pushoperand_ref
+
+eval_open_list:
+  jp err_syntax
 
 exec_num:
   ex de,hl
@@ -1150,13 +1268,12 @@ _:
   call binarysearch
   jr nz,var_not_found
   ;var was found, assume the index is safe
-  ld a,e
+  ld a,(temp_word_1+1)
   ld hl,(temp_word_2)
   ret
 
 var_not_found:
 ;However, DE is what the index should have been.
-  push de
   ld hl,(var_names_base)     ;pointer to the LUT of var names
   add hl,de
   add hl,de
@@ -1222,44 +1339,38 @@ _:
   call tok_to_alnum
   jr nc,-_
   ex de,hl
-  ld (hl),0
+  xor a
+  ld (hl),a
   inc hl
+
+;Now we write it's index
+  ld de,(vars_count)
+  dec de
+  ld (hl),e
+  inc hl
+  ; ld (hl),d   ;only allowing <256 vars for now
+  ; inc hl
+
+;Now save var_names_ptr
   ld (var_names_ptr),hl
 
-  pop de
-;Finally, we need to insert 2 null bytes into the var ptr LUT.
-  ld a,e      ;save the index in A
+;Finally, we need to zero-out t bytes at the end of the var ptr LUT.
 
-
-  ld hl,(vars_count)
-  scf
-  sbc hl,de
-  jr z,+_
-  add hl,hl
-  ld b,h
-  ld c,l    ;number of bytes to shift
+  ld hl,pvars
   add hl,de
   add hl,de
-  ld de,pvars
-  add hl,de
-  ld d,h
-  ld e,l
-  inc de
-  dec hl
-  lddr
-  ex de,hl
-  ld (hl),c
-  dec hl
-  ld (hl),c
-_:
+  ld (hl),a
+  inc hl
+  ld (hl),a
   ld hl,(parsePtr)
+  ld a,e
   ret
 
 
 get_var_by_name_cmp:
 ;HL is the input
-;DE is the var to watch
-;If match, save the end of the input in temp_word_2
+;DE is the var to match
+;If match, save the end of the input in temp_word_2 and index in temp_word_1+1
 ;
 ; Make sure the first byte matches
   ld a,(temp_word_1)
@@ -1297,6 +1408,10 @@ end_of_input:
   ret nz
   ;we found a match, let's save the end-of-name
   ld (temp_word_2),bc
+  ;save the index in temp_word_1+1
+  inc hl
+  ld a,(hl)
+  ld (temp_word_1+1),a
   ret
 
 tok_to_alnum:
@@ -1770,7 +1885,7 @@ pop_to:
 
 pop_operand:
 ; Need to pop off the operand stack
-; leave with DE pointing to the start of the element data, A as the type-1
+; leave with DE pointing to the start of the element data, A as the type-1, BC is the size
   ld de,(operandstack_ptr)
   dec de
   ld a,(de)
@@ -1796,6 +1911,9 @@ pop_operand:
   dec d
   ld (operandstack_ptr),de
   ld a,c
+  ld c,b
+  inc c
+  ld b,0
   ret
 
 pop_to_variable_size:
@@ -1820,15 +1938,19 @@ popvar_to:
   inc hl
   ex de,hl
   dec a
+  cp type_list-1
+  jr z,+_
   cp type_str-1
   jr z,+_
   cp type_raw-1
   ret nz
 _:
+  ex de,hl
   ld c,(hl)
   inc hl
   ld b,(hl)
   inc hl
+  ex de,hl
   ret
 
 pushoperand_var:
@@ -1941,11 +2063,11 @@ exec_quote:
   call seek_EOS
   ld (parsePtr),hl
   pop de
-  ;DE points to the start
-  ;BC is the size
-  ;A is the type
   ld a,type_tstr_ref
 pushoperand_ref:
+;DE points to the start
+;BC is the size
+;A is the type
   push bc
 #ifdef STACK_SAFE
   ld bc,(operandstack_ptr)
@@ -2357,9 +2479,6 @@ DrawRectToGraph:
 #include "gfx/gbufToLCD.z80"
 #include "subroutines/diRestore.z80"
 #include "subroutines/CheckStatus.z80"
-#include "conversion/itoa_16.z80"
-#include "conversion/atoui32.z80"
-#include "search/binarysearch.z80"
 #include "subroutines/util.z80"
 #include "subroutines/searchlabel.z80"
 #include "parsnipdata.z80"
@@ -2369,6 +2488,10 @@ DrawRectToGraph:
 #include "math/div16_continue.z80"
 #include "math/division/divfixed_88.z80"
 #include "math/multiplication/mulfixed_88.z80"
+#include "conversion/itoa_16.z80"
+#include "conversion/atoui32.z80"
+#include "search/binarysearch.z80"
+#include "utility/strcopy.z80"
 #include "err.z80"
 
 

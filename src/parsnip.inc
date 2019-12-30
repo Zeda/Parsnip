@@ -32,6 +32,7 @@ _MemChk         = 42E5h
 _clrTxtShd      = 454Ch
 _saveCmdShadow  = 4573h
 _PutS           = 450Ah
+_PutC           = 4504h
 _OP5ToOP1       = 413Bh
 _OP1ToOP5       = 4153h
 _NewLine        = 452Eh
@@ -131,6 +132,9 @@ type_str      = 11
 type_str_ref  = 12
 type_single   = 13
 type_xfloat   = 14
+type_list     = 15
+type_list_ref = 16
+
 
 X_CONST_0     = 6
 X_CONST_1     = 7
