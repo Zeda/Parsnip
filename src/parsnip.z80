@@ -551,7 +551,7 @@ type_size_LUT:
   .db 5   ; 09 tstr_ref
   .db 0   ; 0A raw
   .db 0   ; 0B str
-  .db 3   ; 0C str_ref
+  .db 5   ; 0C str_ref
   .db 5   ; 0D single
   .db 11  ; 0E xfloat
   .db 0   ; 0F list
@@ -1158,6 +1158,38 @@ eval_sto:
   call pop_operand
   ld hl,eval_sto_LUT
   jp jumptableindex
+
+sto_temp:
+;Need to create a temp var and set HL as its pointer
+;For now, we are only allowing 4 temp vars
+  ex de,hl
+  ld a,(temp_var_count)
+  inc a
+  ld (temp_var_count),a
+  and 3
+  add a,50
+  add a,a
+  ld hl,pvars
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+
+  ld c,(hl)
+  ld (hl),e
+  inc hl
+  ld b,(hl)
+  ld (hl),d
+
+  ld a,b
+  or c
+  ret z
+  ld h,b
+  ld l,c
+dealloc_data:
+;HL points to the data to deallocate
+;This means that all vars need to have their pointers adjusted
+  ret
 
 alloc:
 ;Inputs:
@@ -2444,6 +2476,7 @@ FindGVarData:
 #include "SetUpData.z80"
 #include "parserhook.z80"
 #include "tokenhook.z80"
+
 #ifdef include_LoadTSA
 #include "cmd/loadtsa.z80"
 #endif
@@ -2622,7 +2655,6 @@ mulfixed16_16_p0:
   ld hl,mulfixed16_16
   ld (next_page_call_address),hl
   jp next_page_call
-
 
 
 #include "ops/add.z80"
