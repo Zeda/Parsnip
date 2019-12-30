@@ -426,15 +426,18 @@ exec_pow:
 
 exec_close_parens:
 ;need to evaluate up to the open parens or function
-_:
+  call end_arg
+  jr eval_func
+
+end_arg:
   ld hl,(opstack_ptr)
   ld a,(hl)
   inc hl
   call getprecedence
   cp 254
   call c,eval_func
-  jr c,-_
-  jr eval_func
+  jr c,end_arg
+  ret
 
 opeval:
   call opstackprecedence
@@ -575,8 +578,9 @@ exec_close_index:
 ;     Have to work backwards, also get the size of each element (needs to be
 ;     evaluated)
 
-;Make sure the opstack has a `[` on it
-;WARNING! Does not evaluate an expression on the last argument!
+  call end_arg
+
+; Make sure the opstack has a `[` on it
   ld hl,(opstack_ptr)
   ld a,(hl)
   cp $06
@@ -587,7 +591,7 @@ exec_close_index:
 
 ; Initialize the list field (and set it to size 0)
   ld hl,(heap_ptr)
-  ld (hl),type_list_ref
+  ld (hl),type_list
   inc hl
   xor a
   ld (hl),a
@@ -639,10 +643,18 @@ _:
   or a
   jr nz,+_
   ;need to write the size bytes still
+  pop hl
+  ld a,(hl)
+  dec hl
+  dec hl
+  dec hl
+  ld (hl),a
+  push hl
   inc hl
-  ld c,(hl)
+  ld (hl),c
   inc hl
-  ld b,(hl)
+  ld (hl),b
+  inc bc
 _:
   cpi
   jp po,write_list_start
@@ -654,7 +666,7 @@ write_list_start:
   call is_end_of_args
   jr nz,write_list_loop
 
-  ;pop off the end-of-arg:
+  ;pop off the end-of-args
   ld (operandstack_ptr),hl
 
   pop hl    ;start of the list data
@@ -1175,17 +1187,11 @@ sto_temp:
   jr nc,$+3
   inc h
 
-  ld c,(hl)
   ld (hl),e
   inc hl
-  ld b,(hl)
   ld (hl),d
+  ret
 
-  ld a,b
-  or c
-  ret z
-  ld h,b
-  ld l,c
 dealloc_data:
 ;HL points to the data to deallocate
 ;This means that all vars need to have their pointers adjusted
@@ -1969,6 +1975,7 @@ popvar_to:
   jp z,err_unknown
   inc hl
   ex de,hl
+val_adjust_ptr:
   dec a
   cp type_list-1
   jr z,+_
