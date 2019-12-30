@@ -605,7 +605,7 @@ exec_close_index:
 
   ld hl,(heap_top)
   push hl
-  jr c,write_list_start
+  jr write_list_start
 write_list_loop:
   ld hl,temp_word_1
   inc (hl)
