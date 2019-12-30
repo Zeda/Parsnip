@@ -14,6 +14,8 @@ to_str_LUT:
   .dw str_ref_convert_to_str
   .dw single_convert_to_str
   .dw xfloat_convert_to_str
+  .dw list_convert_to_str
+  .dw list_ref_convert_to_str
 _:
 
 ui8_convert_to_str:
@@ -89,6 +91,124 @@ var_convert_to_str:
 raw_convert_to_str:
   jp err_syntax
 
+list_ref_convert_to_str:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc de
+  inc de
+  inc de
+list_convert_to_str:
+  ex de,hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ;HL points to the first entry
+  ;BC is the number of entries
+  ; We wil use the heap to store the string.
+  ld de,(heap_ptr)
+
+  ;save DE for returning later
+  push de
+
+  ;write `[`
+  ld a,$C1
+  ld (de),a
+  inc de
+  jr list_to_str_begin
+list_to_str_loop:
+  push hl
+  push bc
+
+
+
+
+  ld a,(hl)
+  ex de,hl
+  cp type_str
+  jr z,write_quote
+  cp type_tstr_ref
+  jr nz,+_
+write_quote:
+  ld (hl),$22      ;quote
+  inc hl
+_:
+  push af   ;is string?
+  push hl   ;where to write
+  ld (heap_ptr),hl
+
+  inc de
+  dec a
+  ld hl,to_str_LUT
+  call jumptableindex
+  pop de
+  call strcopy
+  dec de
+
+
+  pop af
+  jr nz,+_
+  ld a,$22      ;quote
+  ld (de),a
+  inc de
+_:
+
+  pop bc
+  pop hl
+  ld a,c
+  dec a
+  or b
+  jr z,list_to_str_no_comma
+  ld a,','
+  ld (de),a
+  inc de
+
+
+  ld a,(hl)
+  push de
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  ld d,0
+  or a
+  jr nz,+_
+  inc hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  .db $FE
+_:
+  ld e,a
+  add hl,de
+  pop de
+
+  dec bc
+list_to_str_begin:
+  ld a,b
+  or c
+  jr nz,list_to_str_loop
+
+list_to_str_no_comma:
+
+  ;write `]`
+  ld a,']'
+  ld (de),a
+  inc de
+  xor a
+  ld (de),a
+
+  ;now pop the start of the string and restore heap_ptr
+  pop hl
+  ld (heap_ptr),hl
+  ret
+
+
 tstr_ref_convert_to_str:
   ex de,hl
   ld e,(hl)
@@ -118,8 +238,6 @@ _:
 
 str_convert_to_str:
   ex de,hl
-  inc hl
-  inc hl
   ret
 str_ref_convert_to_str:
   ex de,hl
