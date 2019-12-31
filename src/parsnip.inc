@@ -134,12 +134,15 @@ type_single   = 13
 type_xfloat   = 14
 type_list     = 15
 type_list_ref = 16
+type_char     = 17
 
 
 X_CONST_0     = 6
 X_CONST_1     = 7
 X_CONST_PI    = 0
 X_CONST_e     = 1
+
+tok_index     = $FF
 
 ;===============================================================
 ; Variables (RAM usage)

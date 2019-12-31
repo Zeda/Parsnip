@@ -559,11 +559,11 @@ type_size_LUT:
   .db 11  ; 0E xfloat
   .db 0   ; 0F list
   .db 5   ; 10 list_ref
+  .db 2   ; 11 char
 
 type_size_LUT_end:
 
 exec_close_list:
-exec_close_index:
 ; There is a special case to take care of!
 ; In the event of [stuff][index], we need to check if the next char to be parsed
 ; is a '['. If so, need to store t_open_index instead of t_open_list
@@ -583,10 +583,12 @@ exec_close_index:
 ; Make sure the opstack has a `[` on it
   ld hl,(opstack_ptr)
   ld a,(hl)
-  cp $06
-  jp nz,err_syntax
   inc hl
   ld (opstack_ptr),hl
+  cp tok_index
+  jp z,exec_close_index
+  cp $06
+  jp nz,err_syntax
 
 
 ; Initialize the list field (and set it to size 0)
@@ -701,10 +703,87 @@ write_list_start:
   pop de
   dec de
   ld a,type_list_ref
-  jp pushoperand_ref
+  call pushoperand_ref
+  jp check_if_index
 
-eval_open_list:
+exec_close_index:
+  call popoperand_ui16
+  push de
+  call is_end_of_args
+  jp nz,err_syntax
+  ld (operandstack_ptr),hl
+  call pop_operand
+  pop hl    ;the index
+  cp type_str-1
+  jr z,exec_str_index
+  cp type_str_ref-1
+  jr z,exec_str_ref_index
+  cp type_list-1
+  jr z,exec_list_index
+  cp type_list_ref-1
+  jr z,exec_list_ref_index
   jp err_syntax
+
+exec_list_ref_index:
+  ld b,h
+  ld c,l
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld h,b
+  ld l,c
+  inc de
+  inc de
+  inc de
+exec_list_index:
+  ex de,hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ex de,hl
+;make sure HL<BC
+  ; or a
+  sbc hl,bc
+  jp nc,err_bad_index
+  add hl,bc
+  ld b,h
+  ld c,l
+  ex de,hl
+  jr list_index_start
+list_index_loop:
+  call next_list_element
+  dec bc
+list_index_start:
+  ld a,b
+  or c
+  jr nz,list_index_loop
+  ;HL points to the var
+  call push_operand
+  jp check_if_index
+
+exec_str_ref_index:
+  push hl
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  pop hl
+exec_str_index:
+;make sure HL<BC-1
+  dec bc
+  ; or a
+  sbc hl,bc
+  jp nc,err_bad_index
+  add hl,bc
+  add hl,de
+  ld a,(hl)
+  jp pushoperand_char
 
 exec_num:
   ex de,hl
@@ -1272,7 +1351,17 @@ exec_var_pre:
 exec_var:
   call get_var_by_name  ;returns HL pointing to the byte after the name, A is its index
   ld (parsePtr),hl
-  jp pushoperand_var
+  call pushoperand_var
+
+check_if_index:
+  ld hl,(parsePtr)
+  ld a,(hl)
+  cp $06
+  ret nz
+  inc hl
+  ld (parsePtr),hl
+  ld a,tok_index
+  jp exec_open_list
 
 get_var_by_name:
 ;Input: A is the first byte of te name, HL points to the next
@@ -1992,6 +2081,90 @@ _:
   ex de,hl
   ret
 
+push_operand:
+;HL points to the value to push to the operand stack
+;First, get the size
+  ld a,(hl)
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  or a
+  jr z,push_operand_variable
+  ;A is the number of bytes to push
+  ld c,a
+  ld b,0
+
+  push hl
+  ld hl,(operandstack_ptr)
+  add hl,bc
+  ex de,hl
+  ld hl,(operandstack_top)
+  sbc hl,de
+  ;want HL>=DE
+  pop hl
+  jp c,err_stack_overflow_push
+
+  ld de,(operandstack_ptr)
+  ld a,(hl)   ;type byte
+  cpi
+  jp po,+_
+  ldir
+_:
+  ld (de),a
+  inc de
+  ld (operandstack_ptr),de
+  ret
+
+push_operand_variable:
+  ld a,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ex de,hl
+
+  cp type_str
+  jr nz,+_
+  ld a, type_str_ref
+  jp pushoperand_ref
+_:
+
+  cp type_list
+  jr nz,+_
+  ld a, type_list_ref
+  jp pushoperand_ref
+_:
+
+
+
+next_list_element:
+  ld a,(hl)
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  or a
+  jr z,next_list_element_variable
+  add a,l
+  ld l,a
+  ret nc
+  inc h
+  ret
+next_list_element_variable:
+  inc hl
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  inc hl
+  add hl,de
+  ret
+
 pushoperand_var:
 ;pushes the index of a var to the operand stack
 ;A is the index
@@ -2078,8 +2251,15 @@ pushoperand_2byte:
   ld (operandstack_ptr),hl
   ret
 
+
+pushoperand_char:
+  ld d,type_char
+  jr pushoperand_1_byte
 pushoperand_ui8:
+  ld d,type_ui8
+pushoperand_1_byte:
 ;pushes A to the operand stack
+;D is type
 #ifdef STACK_SAFE
   ld bc,(operandstack_ptr)
   inc bc
@@ -2091,7 +2271,7 @@ pushoperand_ui8:
   ld hl,(operandstack_ptr)
   ld (hl),a
   inc hl
-  ld (hl),type_ui8
+  ld (hl),d
   inc hl
   ld (operandstack_ptr),hl
   ret
@@ -2132,7 +2312,7 @@ pushoperand_ref:
   ld (hl),a
   inc hl
   ld (operandstack_ptr),hl
-  ret
+  jp check_if_index
 
 
 pushoperand_fixed1616:

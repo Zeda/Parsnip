@@ -16,11 +16,21 @@ to_str_LUT:
   .dw xfloat_convert_to_str
   .dw list_convert_to_str
   .dw list_ref_convert_to_str
+  .dw char_convert_to_str
 _:
+
+char_convert_to_str:
+  ld hl,(heap_ptr)
+  ld a,(de)
+  ld (hl),a
+  inc hl
+  ld (hl),0
+  dec hl
+  ret
 
 ui8_convert_to_str:
   ld a,(de)
-  ld hl,OP1
+  ld hl,(heap_top)
 #include "conversion/uitoa_8.z80"
 
 ui16_convert_to_str:
@@ -28,7 +38,7 @@ ui16_convert_to_str:
   ld e,(hl)
   inc hl
   ld d,(hl)
-  ld hl,OP1
+  ld hl,(heap_top)
 #include "conversion/uitoa_16.z80"
 
 ui32_convert_to_str:
@@ -42,7 +52,7 @@ ui32_convert_to_str:
   ld h,(hl)
   ld l,a
   ex de,hl
-  ld ix,OP1+10
+  ld ix,(heap_top)+10
   ld (ix),0
 #include "conversion/uint32tostr_baseC.z80"
 
@@ -51,7 +61,7 @@ fixed88_convert_to_str:
   ld e,(hl)
   inc hl
   ld d,(hl)
-  ld hl,OP1
+  ld hl,(heap_top)
 #include "conversion/fixed88_to_str.z80"
 
 fixed1616_convert_to_str:
@@ -77,10 +87,10 @@ false_to_str:
 true_to_str:
   ld hl,s_true
 _:
-  ld de,OP1
+  ld de,(heap_top)
   ld bc,6
   ldir
-  ld hl,OP1
+  ld hl,(heap_top)
   ret
 s_false:
   .db "false",0
@@ -271,14 +281,14 @@ str_ref_convert_to_str:
 
 single_convert_to_str:
   ex de,hl
-  ld bc,OP1
+  ld bc,(heap_top)
   call single2str_p0
   ld h,b
   ld l,c
   ret
 xfloat_convert_to_str:
   ex de,hl
-  ld bc,OP1
+  ld bc,(heap_top)
   call xtostr_p0
   ld h,b
   ld l,c

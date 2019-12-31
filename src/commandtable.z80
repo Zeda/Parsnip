@@ -12,7 +12,7 @@ CommandJumpTable:
 .dw exec_sto       ; 04
 .dw ErrBadToken    ; 05
 .dw exec_open_list ; 06
-.dw exec_close_index;07
+.dw exec_close_list; 07
 .dw ErrBadToken    ; 08
 .dw ErrBadToken    ; 09
 .dw ErrBadToken    ; 0A
@@ -270,7 +270,7 @@ evalLUT:
 .dw ErrBadToken    ; 03
 .dw eval_sto       ; 04
 .dw ErrBadToken    ; 05
-.dw eval_open_list ; 06
+.dw ErrBadToken    ; 06
 .dw ErrBadToken    ; 07
 .dw ErrBadToken    ; 08
 .dw ErrBadToken    ; 09

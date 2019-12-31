@@ -1,3 +1,7 @@
+err_bad_index:
+  ld a,14
+  jr Err
+
 err_unknown:
 err_bad_name:
   ld a,13
@@ -32,10 +36,10 @@ err_bad_type:
 err_syntax:
   ld a,6
   jr Err
-ErrStackOverflow_pop:
+err_stack_overflow_pop:
   ld a,5
   jr Err
-ErrStackOverflow_push:
+err_stack_overflow_push:
   ld a,4
   jr Err
 ErrBadToken:
@@ -132,7 +136,7 @@ error_LUT:
   .dw s_err_heap_overflow
   .dw s_err_label_not_found
   .dw s_err_bad_name
-  ; .dw s_err_
+  .dw s_err_bad_index
   ; .dw s_err_
   ; .dw s_err_
   ; .dw s_err_
@@ -168,3 +172,5 @@ s_err_label_not_found:
   .db "LblNotFound",0
 s_err_bad_name:
   .db "Bad Name",0
+s_err_bad_index:
+  .db "Bad Index",0
