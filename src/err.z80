@@ -1,3 +1,7 @@
+err_bad_input:
+  ld a,15
+  jr Err
+
 err_bad_index:
   ld a,14
   jr Err
@@ -137,7 +141,7 @@ error_LUT:
   .dw s_err_label_not_found
   .dw s_err_bad_name
   .dw s_err_bad_index
-  ; .dw s_err_
+  .dw s_err_bad_input
   ; .dw s_err_
   ; .dw s_err_
 error_LUT_end:
@@ -174,3 +178,5 @@ s_err_bad_name:
   .db "Bad Name",0
 s_err_bad_index:
   .db "Bad Index",0
+s_err_bad_input:
+  .db "Bad Input",0
