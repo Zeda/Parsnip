@@ -1608,7 +1608,7 @@ exec_function_is_var:
   jp push_operand
 
 get_func:
-;Input: A is the first byte of te name, HL points to the next
+;Input: A is the first byte of the name, HL points to the next
 ;Output: HL pointing to the byte after the name, DE points to the func data
 
 ;Since we are only allowing alphanumerics, we'll use a fast, custom routine
@@ -1643,14 +1643,11 @@ get_var_by_name:
 
 ;Since we are only allowing alphanumerics, we'll use a fast, custom routine
 ;so that we don't need to use a bcall to convert tokens to ASCII
-  call tok_to_alnum
-  jp c,err_bad_name
+  ld a,(temp_word_1)
 
 ;Make sure the first char is alphabetic (not numeric)
   cp '9'+1
   jp c,err_bad_name
-
-  ld (parsePtr),hl
 
   call +_
   cp 54
@@ -1658,9 +1655,7 @@ get_var_by_name:
   jp err_mem
 _:
 ;saveSScreen has the table
-  ld (temp_word_1),a    ;first byte of the var name
-  ld b,h
-  ld c,l
+  ld bc,(parsePtr)
   ld hl,(vars_count)
   ld ix,get_var_by_name_cmp
   call binarysearch
