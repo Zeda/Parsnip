@@ -2979,6 +2979,7 @@ FindGVarData:
   ret
 
 internal_vars_LUT:
+  .dw internal_func_CHAR      ;CHAR
   .dw internal_func_GETMODE   ;GETMODE
   .dw internal_func_SETMODE   ;SETMODE
   .dw internal_func_VERSION   ;VERSION
@@ -2988,6 +2989,8 @@ internal_func_GETMODE:
   .db "GETMODE",0,128+0
 internal_func_SETMODE:
   .db "SETMODE",0,128+1
+internal_func_CHAR:
+  .db "CHAR",0,128+2
 internal_func_VERSION:
   .db "VERSION",0
   .db type_str_ref

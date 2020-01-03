@@ -53,6 +53,11 @@ xconst_to:
   call xconst
   jp mov10
 
+popoperand_ui8_p1:
+  ld hl,popoperand_ui8
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
 popoperand_ui16_p1:
   ld hl,popoperand_ui16
   ld (prev_page_call_address),hl
@@ -65,6 +70,11 @@ pop_end_of_params_p1:
 
 pushoperand_ui16_p1:
   ld hl,pushoperand_ui16
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+pushoperand_char_p1:
+  ld hl,pushoperand_char
   ld (prev_page_call_address),hl
   jp prev_page_call
 
@@ -84,11 +94,20 @@ eval_func_p1:
 internal_eval_table:
   .dw eval_getmode
   .dw eval_setmode
+  .dw eval_char
 
 eval_setmode:
   call popoperand_ui16_p1
   ld (flags+userflags),de
   jp pop_end_of_params_p1
+
+eval_char:
+  call popoperand_ui8_p1
+  push af
+  call pop_end_of_params_p1
+  pop af
+  jp pushoperand_char_p1
+
 
 eval_getmode:
   call pop_end_of_params_p1

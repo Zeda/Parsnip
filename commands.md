@@ -167,3 +167,15 @@ Add their values to set multiple modes. For example, to set all three:
 ```
 SETMODE(7)
 ```
+
+## CHAR()
+`CHAR(val)` converts `val` to a char. For example, to display the `@` symbol:
+```
+Disp CHAR(64)
+```
+
+Or if you want to put an `'@'` before a string `Z`:
+```
+CHAR(64)+"HELLO"→Z
+Disp Z
+```
