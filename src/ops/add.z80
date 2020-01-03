@@ -100,7 +100,6 @@ add_str_ref:
   inc bc
   call alloc
   ;HL points to where to write the data
-  ld (temp_word_1),hl
   ld d,h
   ld e,l
   ld (hl),type_str
@@ -112,6 +111,7 @@ add_str_ref:
   inc hl
   ld (hl),b
   inc hl
+  ld (temp_word_1),hl
   ex de,hl
   ;DE points to where to write
   ;HL points to the start of the data
