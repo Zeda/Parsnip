@@ -263,20 +263,13 @@ _:
   ret
 
 
-str_convert_to_str:
-  ex de,hl
-  ret
 str_ref_convert_to_str:
   ex de,hl
-  ld a,(hl)
+  ld e,(hl)
   inc hl
-  ld h,(hl)
-  ld l,a
-  inc hl
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
+  ld d,(hl)
+str_convert_to_str:
+  ex de,hl
   ret
 
 single_convert_to_str:
