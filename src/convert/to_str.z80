@@ -20,12 +20,11 @@ to_str_LUT:
 _:
 
 char_convert_to_str:
-  ld hl,(heap_ptr)
-  ld a,(de)
-  ld (hl),a
-  inc hl
+  ld hl,OP1+1
   ld (hl),0
   dec hl
+  ld a,(de)
+  ld (hl),a
   ret
 
 ui8_convert_to_str:
