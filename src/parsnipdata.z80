@@ -5,6 +5,7 @@ sinTable:
 .db 118,119,121,122,122,123,124,125,126,126,127,127,127,128,128,128
 StrVersion:
  .db "Parsnip v0.2.0",0
+StrVersion_end:
 
 FontSet:
 ;fixed-width font

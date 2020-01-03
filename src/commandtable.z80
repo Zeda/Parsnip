@@ -505,7 +505,7 @@ evalLUT:
 .dw ErrBadToken    ; EE
 .dw ErrBadToken    ; EF
 .dw eval_pow       ; F0
-.dw ErrBadToken    ; F1
+.dw eval_internal  ; F1
 .dw ErrBadToken    ; F2
 .dw ErrBadToken    ; F3
 .dw ErrBadToken    ; F4

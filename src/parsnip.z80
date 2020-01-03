@@ -352,6 +352,7 @@ exec_comma:
   ret
 _:
 
+exec_multibyte:
 exec_open_parens:
 exec_open_list:
 exec_if:
@@ -373,7 +374,6 @@ exec_int:
 exec_ln:
 exec_exp:
 exec_sqrt:
-
 exec_pause:
 exec_disp:
 exec_fix:
@@ -560,6 +560,7 @@ type_size_LUT:
   .db 0   ; 0F list
   .db 5   ; 10 list_ref
   .db 2   ; 11 char
+  .db 7   ; 12 ref
 
 type_size_LUT_end:
 
@@ -760,7 +761,7 @@ list_index_start:
   or c
   jr nz,list_index_loop
   ;HL points to the var
-  call push_operand
+  call pushoperand_type_ref
   jp check_if_index
 
 exec_str_ref_index:
@@ -881,6 +882,16 @@ exec_e:
   ld (operandstack_ptr),hl
   ret
 
+eval_internal:
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  inc hl
+  ld (opstack_ptr),hl
+  ;A is the actual function to execute
+  ld hl,eval_func_p1
+  ld (next_page_call_address),hl
+  jp next_page_call
+
 eval_dispgraph:
 ;might have 0 or 1 argument
 ;assume 0 for now
@@ -995,9 +1006,19 @@ eval_fix:
 
 eval_disp:
   call popoperand_str
-  bcall(_PutS)
+  call PutS_
   bcall(_NewLine)
   jp pop_end_of_params
+
+_:
+  bcall(_PutC)
+PutS_:
+  ld a,(hl)
+  or a
+  inc hl
+  jr nz,-_
+  ret
+
 
 eval_open_parens:
 ;make sure there is one operand
@@ -1179,6 +1200,12 @@ eval_lbl:
   jp ErrBadToken
 
 eval_raw:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  call is_type_numeric
+  jr z,eval_raw_size
+
   call popoperand_str
   push hl
   call pop_end_of_params
@@ -1200,6 +1227,56 @@ eval_raw:
   inc hl
   ld (operandstack_ptr),hl
   ret
+eval_raw_size:
+  call popoperand_ui16
+  ld a,d
+  or e
+  call z,err_bad_input
+  push de
+  call pop_end_of_params
+  pop bc
+  add hl,bc
+  inc hl
+  inc hl
+  ;make sure hl<operandstack_top
+  ld de,(operandstack_top)
+  or a
+  sbc hl,de
+  jp nc,err_stack_overflow_push
+  dec hl
+  dec hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ld (hl),type_raw
+  inc hl
+  ld (operandstack_ptr),hl
+  sbc hl,bc   ;carry is set, so this does an extra decrement, helpfully.
+  ;now write BC 0s. BC>0
+  xor a
+_:
+  ld (hl),a
+  cpi
+  jp pe,-_
+  ret
+is_type_numeric:
+  cp type_ui8
+  ret z
+  cp type_ui16
+  ret z
+  cp type_ui32
+  ret z
+  cp type_xfloat
+  ret z
+  cp type_single
+  ret z
+  cp type_fixed88
+  ret z
+  cp type_fixed1616
+  ret
+
+
 ConvHex:
   ld bc,$0A30
 ConvHexLoop:
@@ -1237,6 +1314,12 @@ _:
 
 
 eval_sto:
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_ref
+  jr z,sto_by_ref
+
   call popoperand_var
   add a,a
   ld hl,pvars
@@ -1249,6 +1332,130 @@ eval_sto:
   call pop_operand
   ld hl,eval_sto_LUT
   jp jumptableindex
+
+sto_by_ref:
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  ld (operandstack_ptr),hl
+  ;DE points to the value to overwrite
+  ex de,hl
+  call get_element_info
+  ;HL points to data
+  ;BC is the size of the data
+  ;A is the var type
+
+  push hl
+  push bc
+  call sto_by_ref_pop
+  ;HL points to the data
+  ;BC is the size of the data
+  ex (sp),hl
+  or a
+  sbc hl,bc
+  jp c,err_bad_type
+  ld h,a
+  ld a,b
+  or c
+  ld a,h
+  pop hl
+  pop de
+  jr z,+_
+  ldir
+  ret
+_:
+;if the type is a bool, need to decrement DE and overwrite
+  cp type_true
+  jr z,+_
+  cp type_false
+  ret nz
+_:
+  dec de
+  ld (de),a
+  ret
+
+get_element_info:
+;Input:
+;   HL points to the element.
+;Outputs:
+;   HL points to the data
+;   BC is the size of the data
+;   A is the var type
+  ld a,(hl)
+  ld de,type_size_LUT
+  add a,e
+  ld e,a
+  jr nc,$+3
+  inc d
+  ld a,(de)
+  or a
+  jr z,get_variable_size_element_info
+  ld c,a
+  ld b,0
+  ld a,(hl)
+  inc hl
+  ret
+get_variable_size_element_info:
+  ld a,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ret
+
+sto_by_ref_pop:
+;Input: A is the type to pop to if possible
+;Outputs: HL points to the data, BC is the size of the data
+  cp type_ui8
+  jr z,sto_by_ref_pop_ui8
+  cp type_ui16
+  jr z,sto_by_ref_pop_ui16
+  cp type_ui32
+  jr z,sto_by_ref_pop_ui32
+  cp type_xfloat
+  jr z,sto_by_ref_pop_xfloat
+  cp type_str
+  jr z,sto_by_ref_pop_str
+  cp type_str_ref
+  jr z,sto_by_ref_pop_str
+  cp type_tstr_ref
+  jr z,sto_by_ref_pop_str
+  jp err_bad_type
+
+sto_by_ref_pop_ui8:
+  call popoperand_ui8
+  ld hl,OP1
+  ld (hl),a
+  ld bc,1
+  ret
+sto_by_ref_pop_ui16:
+  call popoperand_ui16
+  ld hl,OP1+1
+  ld (hl),d
+  dec hl
+  ld (hl),e
+  ld bc,2
+  ret
+sto_by_ref_pop_ui32:
+  call popoperand_ui32
+  ld (OP1),hl
+  ld (OP1+2),de
+  ld hl,OP1
+  ld bc,4
+  ret
+sto_by_ref_pop_xfloat:
+  call popoperand_xfloat
+  ld bc,10
+  ret
+
+sto_by_ref_pop_str:
+  call popoperand_str
+  push hl
+  call stringlength
+  pop hl
+  ret
 
 sto_temp:
 ;Need to create a temp var and set HL as its pointer
@@ -1349,6 +1556,10 @@ getvar_ui16:
 exec_var_pre:
   ld a,$BB
 exec_var:
+; Check if it is a built-in function or variable
+  call get_func
+  jr z,exec_function
+
   call get_var_by_name  ;returns HL pointing to the byte after the name, A is its index
   ld (parsePtr),hl
   call pushoperand_var
@@ -1362,6 +1573,66 @@ check_if_index:
   ld (parsePtr),hl
   ld a,tok_index
   jp exec_open_list
+
+exec_function:
+;HL pointing to the byte after the name
+;DE points to the func data
+  ld a,(de)
+  add a,a
+  jr nc,exec_function_is_var
+  push af
+;it is a function, so make sure that we have parens
+  ld a,(hl)
+  cp 16
+  jp nz,err_missing_open_parens
+  inc hl
+  ld (parsePtr),hl
+  ld a,tok_internal
+  call exec_multibyte
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  dec hl
+  ;need to verify that this doesn't overlap
+  ld (hl),a
+  ld (opstack_ptr),hl
+  inc hl
+  pop af
+  rrca
+;A is the func number
+  ld (hl),a
+  ret
+
+exec_function_is_var:
+  ld (parsePtr),hl
+  ex de,hl
+  jp push_operand
+
+get_func:
+;Input: A is the first byte of te name, HL points to the next
+;Output: HL pointing to the byte after the name, DE points to the func data
+
+;Since we are only allowing alphanumerics, we'll use a fast, custom routine
+;so that we don't need to use a bcall to convert tokens to ASCII
+;Allowed to be numeric for internal functions and vars
+  call tok_to_alnum
+  jp c,err_bad_name
+  ld de,(parsePtr)
+  push de
+  ld (parsePtr),hl
+  ld (temp_word_1),a    ;first byte of the var name
+  ld b,h
+  ld c,l
+  ld hl,(internal_vars_LUT_end-internal_vars_LUT)/2
+  ld ix,get_internal_var_by_name_cmp
+  call binarysearch
+  pop hl
+  ld (parsePtr),hl
+  ret nz
+  ;var or function was found
+  ld de,(temp_word_3)
+  ld hl,(temp_word_2)
+  ret
+
 
 get_var_by_name:
 ;Input: A is the first byte of te name, HL points to the next
@@ -1493,22 +1764,25 @@ _:
   ld a,e
   ret
 
-
+get_internal_var_by_name_cmp:
+  ld bc,internal_vars_LUT
+  jr +_
 get_var_by_name_cmp:
 ;HL is the input
 ;DE is the var to match
 ;If match, save the end of the input in temp_word_2 and index in temp_word_1+1
 ;
 ; Make sure the first byte matches
-  ld a,(temp_word_1)
+  ld bc,(var_names_base)
+_:
   ex de,hl
   add hl,hl
-  ld bc,(var_names_base)
   add hl,bc
   ld c,(hl)
   inc hl
   ld h,(hl)
   ld l,c
+  ld a,(temp_word_1)
   cp (hl)
   ret nz
 
@@ -1539,6 +1813,8 @@ end_of_input:
   inc hl
   ld a,(hl)
   ld (temp_word_1+1),a
+  ;save HL
+  ld (temp_word_3),hl
   ret
 
 tok_to_alnum:
@@ -2018,6 +2294,8 @@ pop_operand:
   ld a,(de)
   cp type_var
   jr z,popvar_to
+  cp type_ref
+  jr z,popref_to
   ld c,a
   dec c
   ld hl,type_size_LUT
@@ -2056,10 +2334,53 @@ pop_to_variable_size:
   ex de,hl
   ret
 
+popref_to:
+  ex de,hl
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  ld (operandstack_ptr),hl
+  jr +_
+popref_ref:
+  ex de,hl
+  ld e,(hl)
+  inc hl
+  ld e,(hl)
+_:
+
+  ld a,(de)
+  inc de
+  cp type_var
+  jr z,popvar_ref
+  cp type_ref
+  jr z,popref_ref
+  ld c,a
+  dec c
+  ld hl,type_size_LUT
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  or a
+  ld a,c
+  ret nz
+  ex de,hl
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  ex de,hl
+  ret
+popvar_ref:
+  jp err_fatal    ;we should never be pointing to this type
+
 popvar_to:
   ex de,hl
   dec hl
   ld (operandstack_ptr),hl
+
   call get_var_ptr
   jp z,err_unknown
   inc hl
@@ -2222,6 +2543,12 @@ pushoperand_ui16_BC:
 
 pushoperand_fixed88:
   ld a,type_fixed88
+  jr pushoperand_2byte
+
+pushoperand_type_ref:
+;HL points to the item
+  ld a,type_ref
+  ex de,hl
   jr pushoperand_2byte
 
 exec_ans:
@@ -2654,6 +2981,21 @@ FindGVarData:
   bcall(_CreateAppVar)
   ret
 
+internal_vars_LUT:
+  .dw internal_func_GETMODE   ;GETMODE
+  .dw internal_func_SETMODE   ;SETMODE
+  .dw internal_func_VERSION   ;VERSION
+internal_vars_LUT_end:
+
+internal_func_GETMODE:
+  .db "GETMODE",0,128+0
+internal_func_SETMODE:
+  .db "SETMODE",0,128+1
+internal_func_VERSION:
+  .db "VERSION",0
+  .db type_str_ref
+  .dw StrVersion
+  .dw StrVersion_end-StrVersion
 
 #include "main.z80"
 #include "progmeta.z80"

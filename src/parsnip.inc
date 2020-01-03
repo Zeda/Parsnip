@@ -135,6 +135,7 @@ type_xfloat   = 14
 type_list     = 15
 type_list_ref = 16
 type_char     = 17
+type_ref      = 18
 
 
 X_CONST_0     = 6
@@ -142,6 +143,7 @@ X_CONST_1     = 7
 X_CONST_PI    = 0
 X_CONST_e     = 1
 
+tok_internal  = $F1
 tok_index     = $FF
 
 ;===============================================================
@@ -223,13 +225,4 @@ pxlBoundsRes    =   4
 SignedText      =   5
 ;    =   6
 ;    =   7
-
-ParticleFlag    = 35
-InternalFlag2   = 35
-Xis0            = 0
-inputflag       = 0
-Xis95           = 1
-Yis0            = 2
-Yis63           = 3
-OffScrn         = 4
-usingfloat      = 5
+UserFlags2      = 35

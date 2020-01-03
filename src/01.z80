@@ -53,4 +53,46 @@ xconst_to:
   call xconst
   jp mov10
 
+popoperand_ui16_p1:
+  ld hl,popoperand_ui16
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+pop_end_of_params_p1:
+  ld hl,pop_end_of_params
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+pushoperand_ui16_p1:
+  ld hl,pushoperand_ui16
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+eval_func_p1:
+;A is the func to evaluate, <128
+  ld hl,internal_eval_table
+  add a,a
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  jp (hl)
+internal_eval_table:
+  .dw eval_getmode
+  .dw eval_setmode
+
+eval_setmode:
+  call popoperand_ui16_p1
+  ld (flags+userflags),de
+  jp pop_end_of_params_p1
+
+eval_getmode:
+  call pop_end_of_params_p1
+  ld de,(flags+userflags)
+  jp pushoperand_ui16_p1
+
 .echo "Page 1: ",$8000-$," bytes remaining"
