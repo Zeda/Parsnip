@@ -15,7 +15,19 @@ eval_mul_LUT:
   .dw mul_str_ref
   .dw mul_single
   .dw mul_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw mul_char
 _:
+
+mul_char:
+  call popoperand_ui16
+  push de
+  call popoperand_ui16
+  pop bc
+  call DE_Times_BC
+  ld a,l
+  jp pushoperand_char
 
 
 mul_ui8:

@@ -15,6 +15,9 @@ eval_ge_LUT:
   .dw ge_str_ref
   .dw ge_single
   .dw ge_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw ge_ui16   ;char
 _:
 
 

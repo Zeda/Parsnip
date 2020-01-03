@@ -15,7 +15,18 @@ eval_sub_LUT:
   .dw sub_str_ref
   .dw sub_single
   .dw sub_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw sub_char
 _:
+
+sub_char:
+  call popoperand_ui8
+  push af
+  call popoperand_ui8
+  pop bc
+  sub b
+  jp pushoperand_char
 
 
 sub_ui8:

@@ -23,8 +23,13 @@ eval_sto_LUT:
   .dw sto_xfloat
   .dw sto_list
   .dw sto_list_ref
+  .dw sto_char
 _:
 
+
+sto_char:
+  ld a,type_char
+  jr sto_
 
 sto_ui8:
   ld a,type_ui8

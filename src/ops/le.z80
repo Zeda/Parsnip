@@ -15,6 +15,9 @@ eval_le_LUT:
   .dw le_str_ref
   .dw le_single
   .dw le_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw le_ui16   ;char
 _:
 
 

@@ -15,8 +15,19 @@ eval_add_LUT:
   .dw add_str_ref
   .dw add_single
   .dw add_xfloat
+  .dw add_list
+  .dw add_list_ref
+  .dw add_char
 _:
 
+
+add_char:
+  call popoperand_ui8
+  push af
+  call popoperand_ui8
+  pop bc
+  add a,b
+  jp pushoperand_char
 
 add_ui8:
 add_ui16:
@@ -119,6 +130,8 @@ add_str_ref:
 
 add_raw:
 add_var:
+add_list:
+add_list_ref:
   jp err_syntax
 
 add_single:

@@ -15,6 +15,9 @@ eval_gt_LUT:
   .dw gt_str_ref
   .dw gt_single
   .dw gt_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw gt_ui16   ;char
 _:
 
 

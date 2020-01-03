@@ -67,6 +67,9 @@ _:
 
 ;IX points to our mask routine. It rotates the mask and computes the next byte.
   call call_ix    ;rotate the mask
+  bit InvertLCDFlag,(iy+userflags)
+  jr z,$+3
+  cpl
   out (17),a
 
 ;We are drawing in columns, so we need to advance HL by 12
@@ -127,9 +130,7 @@ gray2:
   or a
 gray3:
 ;Toggles the mask between %10101010 and %01010101.
-  ld a,c
-  cpl
-  ld c,a
+  rrc c
 
 ; Now we use C to select pixels from either (DE), or (HL).
 ; If a bit in C is 0, the corresponding bit in the output is from (HL),
@@ -141,6 +142,7 @@ gray3:
   ret
 
 gray4:
+  rrca
   ld a,c  ;\
   cp $C0  ; | Rotate the graymask
   rra     ; | Can be efficiently done by rotating left while

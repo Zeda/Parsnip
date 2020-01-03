@@ -14,6 +14,9 @@ to_ui8_LUT:
   .dw str_ref_convert_to_ui8
   .dw single_convert_to_ui8
   .dw xfloat_convert_to_ui8
+  .dw err_syntax
+  .dw err_syntax
+  .dw char_convert_to_ui8
 _:
 
 fixed1616_convert_to_ui8:
@@ -22,6 +25,7 @@ fixed88_convert_to_ui8:
   inc de
 ui16_convert_to_ui8:
 ui32_convert_to_ui8:
+char_convert_to_ui8:
 ui8_convert_to_ui8:
   ld a,(de)
   ret

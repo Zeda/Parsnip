@@ -16,10 +16,14 @@ to_ui32_LUT:
   .dw str_ref_convert_to_ui32
   .dw single_convert_to_ui32
   .dw xfloat_convert_to_ui32
+  .dw err_syntax
+  .dw err_syntax
+  .dw char_convert_to_ui32
 _:
 
 fixed88_convert_to_ui32:
   inc de
+char_convert_to_ui32:
 ui8_convert_to_ui32:
 ;to DEHL
   ld a,(de)

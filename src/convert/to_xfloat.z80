@@ -14,8 +14,12 @@ to_xfloat_LUT:
   .dw str_ref_convert_to_xfloat
   .dw single_convert_to_xfloat
   .dw xfloat_convert_to_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw char_convert_to_xfloat
 _:
 
+char_convert_to_xfloat:
 ui8_convert_to_xfloat:
   ld bc,$4007
   ld a,(de)

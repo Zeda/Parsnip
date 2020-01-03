@@ -15,6 +15,9 @@ eval_neq_LUT:
   .dw neq_str_ref
   .dw neq_single
   .dw neq_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw neq_ui16   ;char
 _:
 
 

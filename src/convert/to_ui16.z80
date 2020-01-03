@@ -14,10 +14,14 @@ to_ui16_LUT:
   .dw str_ref_convert_to_ui16
   .dw single_convert_to_ui16
   .dw xfloat_convert_to_ui16
+  .dw err_syntax
+  .dw err_syntax
+  .dw char_convert_to_ui16
 _:
 
 fixed88_convert_to_ui16:
   inc de
+char_convert_to_ui16:
 ui8_convert_to_ui16:
 ;DE points to the data
 ;return in DE

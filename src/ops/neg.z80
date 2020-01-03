@@ -15,7 +15,15 @@ eval_neg_LUT:
   .dw neg_str_ref
   .dw neg_single
   .dw neg_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw neg_char   ;char
 _:
+
+neg_char:
+  call popoperand_ui8
+  neg
+  jp pushoperand_char
 
 neg_ui8:
   call popoperand_ui8

@@ -1982,6 +1982,8 @@ math_max_type:
   cp b \ ret z \ cp c \ ret z
   ld a,type_false
   cp b \ ret z \ cp c \ ret z
+  ld a,type_char
+  cp b \ ret z \ cp c \ ret z
 
   ld a,type_xfloat
   cp c

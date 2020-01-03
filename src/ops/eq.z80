@@ -15,6 +15,9 @@ eval_eq_LUT:
   .dw eq_str_ref
   .dw eq_single
   .dw eq_xfloat
+  .dw err_syntax
+  .dw err_syntax
+  .dw eq_ui16   ;char
 _:
 
 
