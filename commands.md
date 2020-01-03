@@ -20,7 +20,42 @@ but I don't think I have anything that outputs a `single` type to be used, yet.
 and just as a proof-of-concept, integer division returns a `fixed1616` if it
 doesn't divide evenly.
 * `string` is a string type.
+* `char` is a 1-byte character.
 * `raw` is for raw data. Currently, this is what the sprite routine requires.
+* `list` is a list of values that can be various types (even other lists).
+
+## Operations
+Create a list with `[]`. For example:
+```
+["HELLO","WORLD","!",3.14]→Z
+Disp Z
+```
+
+Use `[]` to index. Adding to the previous code to display "HELLO":
+```
+Disp Z[0]
+```
+
+You can also index strings. Since `Z[1]` is a string:
+```
+Disp Z[1][2]
+```
+That prints the `char` `W`, since `Z[1]` == `"WORLD"`, and index `[2]` refers to
+the `'R'`.
+
+You can store to a list element, but that is kind of broken:
+```
+3.14159→Z[3]
+```
+
+You can't overwrite with a different-sized element, so Parsnip will make an
+attempt to fit it to the size. For example, if you try to write a float to a
+ui16, Parsnip  will convert the float to a ui16.
+
+Strings are strange, if you initially store a 5-character string to an element,
+all future strings stored to it must fit within 5 characters. Storing to list
+elements will eventually change, and elements will be resized according to the
+new type, but for now, this is what you have to work with.
 
 ## Math Operators
 I have programmed in:
@@ -109,3 +144,26 @@ Sets 15MHz mode. TI-BASIC automatically sets 15MHz mode.
 ## Fix
 Works similar to TI-BASIC, but not the same. This sets the max number of digits
 when displaying a float.
+
+## Version
+This returns the string containing Parsnip's version. Example usage:
+
+```
+Disp VERSION
+```
+
+## Get/Set Modes
+These functions aren't useful and are almost certain to change in functionality.
+
+`GETMODE()` returns an integer that represents the current mode.
+`SETMODE(val)` sets the mode.
+The current modes (and these will almost certainly change):
+
+- 1 : InvertTextFlag - Inverts text drawn to the graph screen.
+- 2 : InvertLCDFlag - `Dispgraph` inverts the data before outputting to the LCD.
+- 4 : OnBlockFlag - Disables checking for the `[ON]` key to exit
+
+Add their values to set multiple modes. For example, to set all three:
+```
+SETMODE(7)
+```
