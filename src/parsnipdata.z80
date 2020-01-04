@@ -1,10 +1,5 @@
-sinTable:
-.db 0,3,6,9,13,16,19,22,25,28,31,34,37,40,43,46
-.db 49,52,55,58,60,63,66,68,71,74,76,79,81,84,86,88
-.db 91,93,95,97,99,101,103,105,106,108,110,111,113,114,116,117
-.db 118,119,121,122,122,123,124,125,126,126,127,127,127,128,128,128
 StrVersion:
- .db "Parsnip v0.2.0",0
+ .db "Parsnip v0.3.0",0
 StrVersion_end:
 
 FontSet:
@@ -16,9 +11,7 @@ vFont:
 #include "fonts/vfont.asm"
 
 GramTempName:
- .db 16h,"GramTemp"
-GVarData:
- .db 15h,"GVarData"
+.db 16h,"GramTemp"
 
 s_appv:    .db "appv",0
 s_prog:    .db "prgm"

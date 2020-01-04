@@ -11,12 +11,6 @@ IncHLMem1 = -_-RAMCodeStart+ramCode
   ld h,40h
   ret
 
-isEOT    = $-RAMCodeStart+ramCode
-;End Of Token includes (, ' ', {, [, \n, :
-  or a \ ret z
-  cp $10 \ ret z  ;(
-  cp $29 \ ret  ;space
-
 _:
 next_page_call = -_-RAMCodeStart+ramCode
 ;121cc
@@ -50,7 +44,5 @@ prev_page_call_address = $-RAMCodeStart+ramCode+1
   out (6),a
   pop af
   ret
-
-
 
 RamCodeEnd:

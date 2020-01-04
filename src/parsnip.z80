@@ -1,42 +1,11 @@
 ;Parsnip
-;================:
-;\\     /\       :
-; \\   //\\      :
-;  \\ //  \\     :
-;   \\/----\\    :
-;   //\----//\   :
-;  // \\  // \\  :
-; //   \\//   \\ :
-;//     \/     \\:
-;================:
-;Project.........Parsnip
-;Program.........Parsnip
-;Author..........Zeda Thomas (ThunderBolt)
-;E-mail..........xedaelnara@gmail.com
-;Size............
-;Language........English
-;Programming.....Assembly
-;Version.........v0.50            ;I rarely update this info
-;Last Update.....23 December 2018     ;This is not accurate, probably
+;   A parser for the TI-83+/84+/SE calculators.
+;   -->  https://github.com/Zeda/Parsnip
 
-#define bcall(x) rst 28h \ .dw x
-#define LCDDelay()   in a,(16) \ rla \ jr c,$-3
 #include "parsnip.inc"
-#define Coord(y,x)     .db 01,y,x
-#define SHELL_BROKEN
 #define speed
-;for x,y,$ffff never stops
-#define K_DELAY_DEFAULT 13
-#define K_DELAY_ACCEL 3
 #define ALIGN_COMMAND_TABLE      ;Comment this to potentially save some bytes, uncomment to save some clock cycles
-;#define include_LoadTSA
 #define STACK_SAFE               ;Makes the stack routines verify that they aren't overflowing
-
-#define char_TI_TOK
-fmtDigits = 97B0h
-#define EXTERNAL_FORMAT_LEN    ;Uses an external reference to get the format length
-#define EXTERNAL_FORMAT_LEN_LOC fmtDigits    ;Use for TI-OS
-
 
 .org $4000
 .db $80,$0F, 0,0,0,0
@@ -126,7 +95,6 @@ parse_via_ptr:
   ld (progEnd),hl
 grazh:
   call SetUpData
-  call progmeta
   call heap_init
   di
   ld hl,BreakProgram
@@ -2708,92 +2676,40 @@ newkeypress:
   inc hl
   ld (hl),K_DELAY_DEFAULT
   ret
-;===============================================================
-GetKey:
-;===============================================================
+
+getKey:
+;Input:
+;   Expects that interrupts are either off or won't interfere with port 1.
 ;Outputs:
-;     a is a value from 0 to 56 that is the keypress
-;    bc is also the key press
-;     d has a bit reset, the rest are set (this is the last key group tested)
-;     e is a with a mask of %11111000
-;    hl is not modified
-;===============================================================
-  di
-  ld de,$FE00
-  ld a,d
-  out (1),a
-  push af \ pop af
-  in a,(1)
-  ld b,e
-  xor $FF \ jr z,+_
-  ld d,a
-  ld c,16 \ cp 15 \ ret z
-  ld c,5
-  ld a,3 \ and d \ cp 3 \ ret z \ inc c
-  ld a,5 \ and d \ cp 5 \ ret z \ inc c
-  ld a,10 \ and d \ cp 10 \ ret z \ inc c
-  ld a,12 \ and d \ cp 12 \ ret z
-  ld a,d
-  cpl
-  ld c,e
-  jp key_add
+;   A is a value from 0 to 56 that is the keypress
+;Destroys:
+;   C, DE
+;     C is actually 1
+;     E is actually a copy of the keypress
+  ld c,1
+  ld de,$FEFF
 _:
-  ld c,a
-_:
+  out (c),d
   rlc d
-  ld a,d
-  out (1),a
+  jr nc,CheckOnPress
   inc e
-  sub 7Fh
-  jp z,CheckOnPress
   in a,(1)
   inc a
   jr z,-_
   dec a
-key_add:
-  inc c
+  sla e
+  sla e
+  sla e
+_:
+  inc e
   rra
-  jr c,key_add
+  jr c,-_
   ld a,e
-  rlca \ rlca \ rlca
-  add a,c
-  ld c,a
   ret
 CheckOnPress:
   call CheckStatus
   ret nz
-  ld c,41
-  ret
-
-CheckKey:
-;Input:
-;     A is the key to test for
-;Output:
-;     z if the key is pressed, nz if not
-  call diRestore
-  cp 41 ;on-key
-  jp z,CheckStatus
-_:
-  dec a \ and 63
-  ld b,a
-  and 7
-  srl b \ srl b \ srl b
-  inc b \ inc a
-;b = 2; a = 1
-  ld c,a
-  ld a,7Fh
-_:
-  rlca
-  djnz -_
-  out (1),a
-  ld b,c
-  ld a,80h
-_:
-  rlca
-  djnz -_
-  ld c,a
-  in a,(1)
-  and c
+  ld a,41
   ret
 
 isStartMenu_valid:
@@ -2808,8 +2724,7 @@ isStartMenu_valid:
   cp $15
   jr z,StartMenu_invalid
 
-
-  ld hl,(VATPtr)
+9  ld hl,(VATPtr)
   ld a,(hl)
   cp 1        ;don't want lists
   jr nz,+_
@@ -2822,15 +2737,12 @@ _:
   cp 17h      ;don't want GroupVars
   jr z,StartMenu_invalid
 
-  bit 6,(iy+UserFlags)     ;must be AppV
+  bit appv_only,(iy+MainMenuFlags)     ;must be AppV
   jr z,+_
   cp 15h
   ret nz
 _:
 ;need to pull in six bytes
-#ifdef include_LoadTSA
-  call LoadReadArc
-#endif
   ld bc,-3
   add hl,bc
   ld e,(hl)
@@ -2857,8 +2769,8 @@ _:
   ld de,cmdShadow
   ld bc,2
   call TSA
-  ld bc,(cmdShadow)
   ;need to save A:HL, BC
+  ld bc,(cmdShadow)
   ld (temp_word_3),a
   ld (temp_word_4),bc
   ld (temp_word_5),hl
@@ -2866,12 +2778,8 @@ _:
   ld bc,4
   call TSA
   ld hl,cmdShadow+2
-  bit OnBlockFlag,(iy+UserFlags)   ;ASM only
-  jp nz,asm_header_only
-
-; ;non-ASM and ASM alike
-;   bit baseInput,(iy+UserFlags)
-;   ret z   ;doesn't have any special filters
+  bit asm_only,(iy+MainMenuFlags)   ;ASM only
+  jr nz,asm_header_only
 
 ;must be a Parsnip Var
 ;header is $B0,$30,$3E
@@ -2884,28 +2792,12 @@ asm_header_only:
 ;first two bytes must be $BB,$6D
 ;
   ld a,(hl) \ cp $BB \ ret nz
-  inc hl \ ld a,(hl) \ cp $6D \ ret nz
-  bit baseInput,(iy+UserFlags)
-  ret z
-;next two bytes must be $55,$C9
-;
-  inc hl \ ld a,(hl) \ cp $55 \ ret nz
-  inc hl \ ld a,(hl) \ cp $C9
-  ret
+  inc hl \ ld a,(hl) \ cp $6D \ ret
 
-#ifdef include_LoadTSA
-ReadArc:
-  call LoadReadArc
-  jp TSA
-#else
+
 ReadArc = TSA
-#endif
 ReadArcData:
-#ifdef include_loadTSA
-  .dw ReadArcEnd-ReadArc-2
-#endif
 #include "readarc.z80"
-ReadArcEnd:
 
 ZeroMem768:
   ld bc,768
@@ -2931,51 +2823,11 @@ ReadRam:
   ldir
   ret
 
-SetSpeed:
-  in a,(20h)
-  ld b,a
-  bit 1,c
-  jr z,+_
-  cpl
-  and 1
-  ld c,a
-_:
+set_max_speed:
   in a,(2)
-  rlca
-  and c
+  add a,a
+  sbc a,a
   out (20h),a
-  ld c,b
-  ld b,0
-  ret
-
-;===============================================================
-GetParsnipStr:
-;===============================================================
-;Input:
-;    HL points to the start of the string
-;Outputs:
-;     A is the value of the ending byte of the string
-;    BC is the size of the string
-;    HL points to the ending byte of the string
-;     z flag is set
-;===============================================================
-  ld bc,0
-_:
-  inc hl
-  inc bc
-  ld a,(hl)
-  cp 4 \ ret z
-  cp 3Fh \ ret z
-  cp 2Ah \ jr nz,-_
-  inc hl
-  ret
-FindGVarData:
-  ld hl,GVarData
-  rst rMov9ToOP1
-  bcall(_ChkFindSym)
-  ret nc
-  ld hl,3
-  bcall(_CreateAppVar)
   ret
 
 internal_vars_LUT:
@@ -2998,7 +2850,6 @@ internal_func_VERSION:
   .dw StrVersion_end-StrVersion
 
 #include "main.z80"
-#include "progmeta.z80"
 #include "ramcode.z80"
 #include "routines.z80"
 #include "isort.z80"
@@ -3006,9 +2857,6 @@ internal_func_VERSION:
 #include "parserhook.z80"
 #include "tokenhook.z80"
 
-#ifdef include_LoadTSA
-#include "cmd/loadtsa.z80"
-#endif
 PutSI:
 ;     The string to display immediately follows the call
 ;       The string is zero terminated
@@ -3044,7 +2892,6 @@ DrawRectToGraph:
 #include "subroutines/util.z80"
 #include "subroutines/searchlabel.z80"
 #include "parsnipdata.z80"
-#include "math.z80"
 #include "math/mul16.z80"
 #include "math/BC_Div_DE_faster.z80"
 #include "math/div16_continue.z80"
@@ -3054,6 +2901,7 @@ DrawRectToGraph:
 #include "conversion/atoui32.z80"
 #include "search/binarysearch.z80"
 #include "utility/strcopy.z80"
+#include "ti8x/utility/checkkey.z80"
 #include "err.z80"
 
 

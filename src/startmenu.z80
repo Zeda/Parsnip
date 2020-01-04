@@ -7,8 +7,7 @@ startmenu__:
 ;Show 7 programs at a time
 
 ;Set to 15MHz if possible in order to speed up setup
-  ld c,1
-  call SetSpeed
+  call set_max_speed
 
 ;First we set up the initial data and pointers
   call SetUpData
@@ -37,7 +36,7 @@ startmenu__:
   out (20h),a
 
 ;Need to set the filter flags.
-  ld (iy+34),a
+  ld (iy+MainMenuFlags),a
 
 ;now we are going to draw the top and bottom fields
 ;Top line
@@ -61,7 +60,7 @@ startmenu__:
   call PutSI
   .db "     AppV Asm  Exit Hook",0
 ;draw the bars between the options
-  ld de,$0111
+  ld de,$010F
 _:
   ld bc,0838h
   push de
@@ -151,14 +150,14 @@ main_menu_ui_loop:
   cp 50 \ ret z ;F4 (Exit)
   cp 53 \ jr nz,+_  ;F1 (Gram)
   ld a,(flags+34)
-  xor 8
+  xor 1<<grammer_only
   ld (flags+34),a
   ld de,$1100
   jr highlight_option
 _:
   cp 52 \ jr nz,+_  ;F2 (AppV)
   ld a,(flags+34)
-  xor 64
+  xor 1<<appv_only
   ld (flags+34),a
   ld de,1312h
 highlight_option:
@@ -167,7 +166,7 @@ highlight_option:
 _:
   cp 51 \ jr nz,+_ ;F3
   ld a,(flags+34)
-  xor 4
+  xor 1<<asm_only
   ld (flags+34),a
   ld de,1326h
   jr highlight_option
