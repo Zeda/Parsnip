@@ -20,7 +20,7 @@ to_str_LUT:
 _:
 
 char_convert_to_str:
-  ld hl,OP1+1
+  ld hl,OP2+1
   ld (hl),0
   dec hl
   ld a,(de)

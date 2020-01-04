@@ -2724,7 +2724,7 @@ isStartMenu_valid:
   cp $15
   jr z,StartMenu_invalid
 
-9  ld hl,(VATPtr)
+  ld hl,(VATPtr)
   ld a,(hl)
   cp 1        ;don't want lists
   jr nz,+_
