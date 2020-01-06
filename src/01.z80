@@ -95,6 +95,18 @@ internal_eval_table:
   .dw eval_getmode
   .dw eval_setmode
   .dw eval_char
+  .dw eval_setfont
+
+eval_setfont:
+  call popoperand_ui8_p1
+  ld (text_mode),a
+  ld hl,FontSet
+  dec a
+  jr nz,+_
+  ld hl,vFont
+_:
+  ld (font_ptr),hl
+  jp pop_end_of_params_p1
 
 eval_setmode:
   call popoperand_ui16_p1

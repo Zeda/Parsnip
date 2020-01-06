@@ -51,7 +51,6 @@ SetUpData:
   ld l,a
   ld (flags+33),a
   ld (flags+34),hl
-  ld (text_mode),a
 
   ld a,3
   ld (text_logic),a

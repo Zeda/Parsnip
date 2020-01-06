@@ -95,6 +95,8 @@ parse_via_ptr:
   ld (progEnd),hl
 grazh:
   call SetUpData
+  ld a,2
+  ld (text_mode),a
   call heap_init
   di
   ld hl,BreakProgram
@@ -1106,8 +1108,6 @@ returnkeycode:
 
 
 eval_text:
-  ld a,2
-  ld (text_mode),a
   call popoperand_str
   push hl
   call popoperand_coord
@@ -2873,6 +2873,7 @@ set_max_speed:
 internal_vars_LUT:
   .dw internal_func_CHAR      ;CHAR
   .dw internal_func_GETMODE   ;GETMODE
+  .dw internal_func_SETFONT   ;SETFONT
   .dw internal_func_SETMODE   ;SETMODE
   .dw internal_func_VERSION   ;VERSION
 internal_vars_LUT_end:
@@ -2883,6 +2884,8 @@ internal_func_SETMODE:
   .db "SETMODE",0,128+1
 internal_func_CHAR:
   .db "CHAR",0,128+2
+internal_func_SETFONT:
+  .db "SETFONT",0,128+3
 internal_func_VERSION:
   .db "VERSION",0
   .db type_str_ref

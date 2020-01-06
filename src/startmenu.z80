@@ -35,6 +35,9 @@ startmenu__:
 ;Set speed to 6MHz, take advantage of A=0 fom ZeroMem768
   out (20h),a
 
+;Set the text mode to 0 as well
+  ld (text_mode),a
+
 ;Need to set the filter flags.
   ld (iy+MainMenuFlags),a
 
