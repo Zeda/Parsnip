@@ -63,7 +63,7 @@ CommandJumpTable:
 .dw exec_num       ; 37
 .dw exec_num       ; 38
 .dw exec_num       ; 39
-.dw ErrBadToken    ; 3A
+.dw exec_dec       ; 3A
 .dw ErrBadToken    ; 3B
 .dw ErrBadToken    ; 3C
 .dw ErrBadToken    ; 3D

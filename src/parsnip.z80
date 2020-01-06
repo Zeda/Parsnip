@@ -569,7 +569,8 @@ type_size_LUT:
   .db 0   ; 0F list
   .db 5   ; 10 list_ref
   .db 2   ; 11 char
-  .db 7   ; 12 ref
+  .db 3   ; 12 ref
+  .db 1   ; 13 display
 
 type_size_LUT_end:
 
@@ -794,6 +795,79 @@ exec_str_index:
   add hl,de
   ld a,(hl)
   jp pushoperand_char
+
+exec_dec:
+;If numeric, jump to exec_num
+  ld a,(hl)
+  cp '0'
+  jr c,+_
+  cp '9'+1
+  jr c,exec_num
+_:
+;First, get the type of the previous element
+  ld hl,(operandstack_ptr)
+  dec hl
+  ld a,(hl)
+  cp type_ref
+  call z,get_ref_type
+  cp type_var
+  call z,get_var_type
+
+  push af   ;type
+  ld hl,type_methods_LUT
+  add a,a
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  or h
+  jp z,err_bad_name
+  ld e,(hl)
+  inc hl
+  ;HL points to the LUT
+  ld (temp_word_2),hl
+  ld hl,(parsePtr)
+  ld a,(hl)
+  inc hl
+  call tok_to_alnum
+  ld b,h
+  ld c,l
+  ld (temp_word_1),a
+  ;E is the number of elements
+  ld l,e
+  ld h,0
+  ld ix,methods_LUT_search
+  call binarysearch
+  jp nz,err_bad_name
+  ld hl,(temp_word_2)
+  ld a,(hl)
+  cp $10      ;(
+  ld a,(temp_word_1+1)    ;function number or var number
+  rla
+  jr nc,exec_method_var
+  jp nz,err_missing_open_parens
+  inc hl
+  ld (parsePtr),hl
+  ld hl,(opstack_ptr)
+  dec hl
+  ld (hl),a   ;function number*2
+  pop af
+  dec hl
+  ld (hl),a   ;type
+  dec hl
+  ld (hl),d   ;0
+  ld(opstack_ptr),hl
+  ld a,tok_method*2
+  push af
+  jp push_2byte_op
+exec_method_var:
+  ld (parsePtr),hl
+  ld hl,(temp_word_3)
+  jp (hl)
 
 exec_num:
   ex de,hl
@@ -1595,6 +1669,7 @@ exec_function:
   jp nz,err_missing_open_parens
   inc hl
   ld (parsePtr),hl
+push_2byte_op:
   ld a,tok_internal
   call exec_multibyte
   ld hl,(opstack_ptr)
@@ -1767,6 +1842,10 @@ _:
   ld a,e
   ret
 
+
+methods_LUT_search:
+  ld bc,(temp_word_2)
+  jr +_
 get_internal_var_by_name_cmp:
   ld bc,internal_vars_LUT
   jr +_
@@ -1859,6 +1938,14 @@ exec_var_index:
   inc hl
   ld (parsePtr),hl
   ;Need to push the var to the
+  ret
+
+get_ref_type:
+  dec hl
+  ld d,(hl)
+  dec hl
+  ld e,(hl)
+  ld a,(de)
   ret
 
 get_var_type:
@@ -2870,8 +2957,51 @@ set_max_speed:
   out (20h),a
   ret
 
+type_methods_LUT:
+  .dw 0               ;00 ui8
+  .dw 0               ;01
+  .dw 0               ;02
+  .dw 0               ;03
+  .dw 0               ;04
+  .dw 0               ;05
+  .dw 0               ;06
+  .dw 0               ;07
+  .dw 0               ;08
+  .dw 0               ;09
+  .dw 0               ;0A
+  .dw 0               ;0B
+  .dw 0               ;0C
+  .dw 0               ;0D
+  .dw 0               ;0E
+  .dw 0               ;0F
+  .dw 0               ;10
+  .dw 0               ;11
+  .dw 0               ;12
+  .dw display_methods ;13 display
+
+display_methods:
+  .db (display_methods_end-display_methods)/2
+  .dw display_method_contrast ;CONTRAST
+  .dw display_method_flip     ;FLIP
+  .dw display_method_off      ;OFF
+  .dw display_method_on       ;ON
+  .dw display_method_zshift   ;ZSHIFT
+display_methods_end:
+
+display_method_contrast:
+  .db "CONTRAST",0,128+0
+display_method_flip:
+  .db "FLIP",0,128+1
+display_method_zshift:
+  .db "ZSHIFT",0,128+2
+display_method_on:
+  .db "ON",0,128+3
+display_method_off:
+  .db "OFF",0,128+4
+
 internal_vars_LUT:
   .dw internal_func_CHAR      ;CHAR
+  .dw internal_func_LCD       ;LCD
   .dw internal_func_GETMODE   ;GETMODE
   .dw internal_func_SETFONT   ;SETFONT
   .dw internal_func_SETMODE   ;SETMODE
@@ -2886,11 +3016,17 @@ internal_func_CHAR:
   .db "CHAR",0,128+2
 internal_func_SETFONT:
   .db "SETFONT",0,128+3
+;  tok_method is function 04
+
 internal_func_VERSION:
   .db "VERSION",0
   .db type_str_ref
   .dw StrVersion
   .dw StrVersion_end-StrVersion
+
+internal_func_LCD:
+  .db "LCD",0
+  .db type_display
 
 #include "main.z80"
 #include "ramcode.z80"

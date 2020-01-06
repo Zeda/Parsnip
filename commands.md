@@ -230,7 +230,18 @@ means, for example, `Text(Y,1,"?"` will draw at pixel coordinates x=4, and
 - `SETFONT(2)` this also uses the small font, but you can draw text to pixel coordinates. **Default**
 
 
+## LCD commands
+The built-in var, `LCD` is a `display` type. On the TI-83+/84+ series, you can:
+- `LCD.OFF()` to turn the LCD off
+- `LCD.ON()` to turn the LCD on
+- `LCD.CONTRAST(val)` to set teh contrast (0 to 63)
+- `LCD.ZSHIFT(val)` to set the z-shift value (0 to 63, if you don't know what this is, definitely play with this.
+- `LCD.FLIP(val)` on *some* calculators, the LCD has special commands to flip
+the LCD horizontally and vertically. This could be useful, but remember that not
+all calcs have this.
 
+I don't know how useful this is, but you can also do something like `LCD→Z`,
+which means now you can use any of the commands via `Z`.
 
 ## CHAR()
 `CHAR(val)` converts `val` to a char. For example, to display the `@` symbol:

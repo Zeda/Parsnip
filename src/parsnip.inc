@@ -142,7 +142,7 @@ type_list     = 15
 type_list_ref = 16
 type_char     = 17
 type_ref      = 18
-
+type_display  = 19
 
 X_CONST_0     = 6
 X_CONST_1     = 7
@@ -150,6 +150,7 @@ X_CONST_PI    = 0
 X_CONST_e     = 1
 
 tok_internal  = $F1
+tok_method    = $04   ;2-byte
 tok_index     = $FF
 
 ;===============================================================

@@ -53,6 +53,11 @@ xconst_to:
   call xconst
   jp mov10
 
+pop_operand_p1:
+  ld hl,pop_operand
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
 popoperand_ui8_p1:
   ld hl,popoperand_ui8
   ld (prev_page_call_address),hl
@@ -78,6 +83,21 @@ pushoperand_char_p1:
   ld (prev_page_call_address),hl
   jp prev_page_call
 
+err_bad_input_p1:
+  ld hl,err_bad_input
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+err_syntax_p1:
+  ld hl,err_syntax
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
+err_fatal_p1:
+  ld hl,err_fatal
+  ld (prev_page_call_address),hl
+  jp prev_page_call
+
 eval_func_p1:
 ;A is the func to evaluate, <128
   ld hl,internal_eval_table
@@ -96,6 +116,7 @@ internal_eval_table:
   .dw eval_setmode
   .dw eval_char
   .dw eval_setfont
+  .dw eval_method
 
 eval_setfont:
   call popoperand_ui8_p1
@@ -125,5 +146,104 @@ eval_getmode:
   call pop_end_of_params_p1
   ld de,(flags+userflags)
   jp pushoperand_ui16_p1
+
+eval_method:
+;opstack should contain a 0, then the type, then the function number*2
+  ld hl,(opstack_ptr)
+  ld a,(hl)
+  or a
+  jp nz,err_fatal_p1
+  inc hl
+  ld a,(hl)
+  inc hl
+  ld c,(hl)
+  inc hl
+  ld (opstack_ptr),hl
+  ld hl,eval_method_type_LUT
+  add a,a
+  add a,l
+  ld l,a
+  jr nc,$+3
+  inc h
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  or h
+  jp z,err_syntax_p1
+  ;now HL points to the table for this type
+  ld b,0
+  add hl,bc   ;BC is already times 2
+  ld a,(hl)
+  inc hl
+  ld h,(hl)
+  ld l,a
+  jp (hl)
+
+eval_method_type_LUT:
+  .dw 0               ;00 ui8
+  .dw 0               ;01
+  .dw 0               ;02
+  .dw 0               ;03
+  .dw 0               ;04
+  .dw 0               ;05
+  .dw 0               ;06
+  .dw 0               ;07
+  .dw 0               ;08
+  .dw 0               ;09
+  .dw 0               ;0A
+  .dw 0               ;0B
+  .dw 0               ;0C
+  .dw 0               ;0D
+  .dw 0               ;0E
+  .dw 0               ;0F
+  .dw 0               ;10
+  .dw 0               ;11
+  .dw 0               ;12
+  .dw method_display  ;13 display
+
+method_display:
+  .dw display_contrast
+  .dw display_flip
+  .dw display_zshift
+  .dw display_off
+  .dw display_on
+
+display_contrast:
+  call popoperand_ui8_p1
+  add a,$C0
+  jp c,err_bad_input_p1
+  out (16),a
+  call pop_end_of_params_p1
+  jp pop_operand_p1
+
+display_zshift:
+  call popoperand_ui8_p1
+  and 63
+  add a,$40
+  out (16),a
+  call pop_end_of_params_p1
+  jp pop_operand_p1
+
+display_off:
+  ld a,3
+  out (16),a
+  call pop_end_of_params_p1
+  jp pop_operand_p1
+
+display_on:
+  ld a,2
+  out (16),a
+  call pop_end_of_params_p1
+  jp pop_operand_p1
+
+display_flip:
+;Some calcs have an LCD with commands to flip the display vertically/horizontally
+  call popoperand_ui8_p1
+  and 3
+  add a,$0C
+  out (16),a
+  call pop_end_of_params_p1
+  jp pop_operand_p1
 
 .echo "Page 1: ",$8000-$," bytes remaining"
