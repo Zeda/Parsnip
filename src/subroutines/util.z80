@@ -1,6 +1,110 @@
 ; Routines:
 ;   seek_EOS
+;   seek_end
+;   seek_Else_End
 ;   is2byte
+
+seek_end:
+;Start at (parsPtr)
+  ld hl,(parseptr)
+seek_end_from_HL:
+  ld b,0
+
+seek_end_inc:
+  inc b
+  .db $FE     ;start of `cp *`, this just eats the `inc hl` for 7cc and 1 byte
+seek_end_inc_ptr:
+  inc hl
+seek_end_loop:
+  ld a,(hl)
+  inc hl
+  call is2byte
+  jr z,seek_end_inc_ptr
+  ;the tokens we care about are in [CE,D4]
+  cp $D5
+  jr nc,seek_end_loop
+  sub $CE     ;If
+  jr c,seek_end_loop
+  jr z,seek_end_inc
+  dec a       ;Then
+  jr z,seek_end_loop
+  dec a       ;Else
+  jr z,seek_end_else
+  dec a       ;While
+  jr z,seek_end_inc
+  dec a       ;repeat
+  jr z,seek_end_inc
+  dec a       ;For(
+  jr z,seek_end_inc
+  ;If it gets this far, it is End
+  ;decrement B, and finish if it hits 0, otherwise keep looping
+  djnz seek_end_loop
+  ;set HL as parsePtr
+  ld (parsePtr),hl
+  ret
+
+seek_end_else:
+;If the next token is `If`, we need to skip it
+  ld a,(hl)
+  cp $CE
+  jr z,seek_end_inc_ptr
+  jr seek_end_loop
+
+
+seek_Else_End:
+;Start at (parsPtr)
+  ld hl,(parseptr)
+  ld b,0
+
+seek_Else_End_inc:
+  inc b
+  .db $FE     ;start of `cp *`, this just eats the `inc hl` for 7cc and 1 byte
+seek_Else_End_inc_ptr:
+  inc hl
+seek_Else_End_loop:
+  ld a,(hl)
+  inc hl
+  call is2byte
+  jr z,seek_Else_End_inc_ptr
+  ;the tokens we care about are in [CE,D4]
+  cp $D5
+  jr nc,seek_Else_End_loop
+  sub $CE     ;If
+  jr c,seek_Else_End_loop
+  jr z,seek_Else_End_inc
+  dec a       ;Then
+  jr z,seek_Else_End_loop
+  dec a       ;Else
+  jr z,seek_Else_End_else
+  dec a       ;While
+  jr z,seek_Else_End_inc
+  dec a       ;repeat
+  jr z,seek_Else_End_inc
+  dec a       ;For(
+  jr z,seek_Else_End_inc
+  ;If it gets this far, it is End
+  ;decrement B, and finish if it hits 0, otherwise keep looping
+  djnz seek_Else_End_loop
+  ;set HL as parsePtr
+_:
+  ld (parsePtr),hl
+  ret
+seek_Else_End_else:
+;If B=1, then we've found our matching Else, so quit
+  dec b
+  jr nz,seek_Else_End_inc
+  ld a,(hl)
+  cp $CE    ;If
+  ld (parsePtr),hl
+  ret z
+  ;The matching End will expect a {00,$CE} on the opstack
+  ld hl,(opstack_ptr)
+  dec hl
+  ld (hl),$CE
+  dec hl
+  ld (hl),0
+  ld (opstack_ptr),hl
+  ret
 
 seek_EOS:
 ;Inputs:
