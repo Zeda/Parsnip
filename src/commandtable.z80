@@ -213,7 +213,7 @@ CommandJumpTable:
 .dw ErrBadToken    ; CD
 .dw exec_if        ; CE
 .dw ErrBadToken    ; CF
-.dw ErrBadToken    ; D0
+.dw exec_else      ; D0
 .dw exec_while     ; D1
 .dw exec_repeat    ; D2
 .dw ErrBadToken    ; D3
@@ -473,7 +473,7 @@ evalLUT:
 .dw eval_if        ; CE
 .dw ErrBadToken    ; CF
 .dw ErrBadToken    ; D0
-.dw eval_while     ; D1
+.dw ErrBadToken    ; D1
 .dw eval_repeat    ; D2
 .dw ErrBadToken    ; D3
 .dw err_fatal      ; D4

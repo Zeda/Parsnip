@@ -199,6 +199,14 @@ exec_goto:
   ld (parsePtr),hl
   ret
 
+exec_else:
+  ld hl,(parsePtr)
+  ld a,(hl)
+  cp $CE    ;If
+  jr nz,+_
+  inc hl
+_:
+  call seek_end_from_HL
 exec_end:
 ; First verify that we have a 0 on the opstack
 
@@ -208,8 +216,34 @@ exec_end:
   jp nz,err_syntax
   inc hl
   ld a,(hl)
+  cp $CE
+  jr z,end_if
+  cp $D1    ;While token
+  jr z,end_while
   cp $D2    ;Repeat token
-  jp nz,err_fatal
+  jr z,end_repeat
+  jp err_fatal
+
+end_if:
+  inc hl
+  ld (opstack_ptr),hl
+  ret
+
+end_repeat:
+  call eval_condition
+  ret z
+  ld (opstack_ptr),hl
+  ld (parsePtr),de
+  ret
+
+end_while:
+  call eval_condition
+  ret nz
+  ld (opstack_ptr),hl
+  ld (parsePtr),de
+  ret
+
+eval_condition:
   inc hl
   ld e,(hl)
   inc hl
@@ -217,6 +251,11 @@ exec_end:
   inc hl
 
   push hl   ;points to the top of the OP stack if done
+  call parse_condition
+  pop hl
+  ret
+
+parse_condition:
   ld hl,(parsePtr)
   push hl
   ld (parsePtr),de  ;points to the condition
@@ -231,7 +270,7 @@ _:
   jr nz,-_
   inc hl
   ld (parsePtr),hl
-;now make sure process th stuff on the opstack
+;now make sure process the stuff on the opstack
   ld a,254
 _:
   call opstackprecedence
@@ -239,10 +278,6 @@ _:
 
   call popoperand_bool
   pop de
-  pop hl
-  ret z
-  ld (opstack_ptr),hl
-  ld (parsePtr),de
   ret
 
 exec_lbl:
@@ -288,6 +323,13 @@ exec_cubed:
   ld hl,eval_cubed_LUT
   jp jumptableindex
 
+exec_while:
+  ex de,hl
+  call parse_condition
+  jp z,seek_end
+  ex de,hl
+  ld (parsePtr),hl
+  ld a,$D1
 exec_repeat:
 ; Need to push HL to the operator stack, this points to the expression
 ; need to push the repeat token to the operator stack
@@ -302,14 +344,12 @@ exec_repeat:
   dec hl
   ld (hl),e
   dec hl
-  ld (hl),$D2
+  ld (hl),a
   dec hl
   ld (hl),$00
   ld (opstack_ptr),hl
   ex de,hl
   jr seek_EOL
-
-
 
 exec_comma:
 ;evaluate up to the function on the stack
@@ -324,7 +364,6 @@ exec_multibyte:
 exec_open_parens:
 exec_open_list:
 exec_if:
-exec_while:
 exec_for:
 exec_raw:
 exec_full:
@@ -1148,24 +1187,25 @@ eval_pixel:
 
 eval_if:
   call popoperand_bool
-  jp nz,pop_end_of_params
-  ; We need to check THEN, ELSE, END stuff
-  ld hl,(parsePtr)
-  call seek_EOL
-  jp pop_end_of_params
+  push af
+  call pop_end_of_params
+  pop af
+  jp z,seek_Else_End
+; The condition is true, so we'll need to execute
+; This means we'll parse the matching End, eventually,
+; so we need to set up the opstack
+  ld hl,(opstack_ptr)
+  dec hl
+  ld (hl),$CE   ;If
+  dec hl
+  ld (hl),0
+  ld (opstack_ptr),hl
+  ret
 
-eval_while:
-;need to
-  ; call popoperand_bool
-  ; jp z,seek_End
-
-  jp ErrBadToken
-
-eval_repeat:
-eval_for:
-eval_goto:
-eval_lbl:
-  jp ErrBadToken
+eval_repeat = ErrBadToken
+eval_for    = ErrBadToken
+eval_goto   = ErrBadToken
+eval_lbl    = ErrBadToken
 
 eval_raw:
   ld hl,(operandstack_ptr)
