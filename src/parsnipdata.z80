@@ -1,5 +1,5 @@
 StrVersion:
- .db "Parsnip v0.3.0",0
+ .db "Parsnip v0.4.0",0
 StrVersion_end:
 
 FontSet:
