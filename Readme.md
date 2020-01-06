@@ -1,5 +1,14 @@
-This is a proof-of-concept. I basically gutted Grammer 2 and wrote a new parser.
-I did not bother to change most files.
+Parsnip is a parser for the TI-83+/84+. It is a work-in-progress, and there are features that are going to be changed
+frequently. You are welcome to try this out, but your code might not work in a future version. For example, the
+`Sprite()` command currently takes a `raw` type as its sprite. In the future, sprites will be their own type.
+
+I basically took [Grammer 2](https://github.com/Zeda/Grammer2) and kept most of the the main menu code and some of the
+other code, but totally rewrote the parser. It supports a variety of types, including 8-ish numeric types at the moment,
+strings, and lists (not yet arrays). Speed-wise, it is on par with TI-BASIC, about 20% to 30% faster depending on what
+you are doing.
+
+Concepts are loosely inspired by my experience with other languages, especially C, Python, and TI-BASIC for the 68k
+calcs like the TI-92/89/Voyager. 
 
 ![*Example with mixing types and variable storage*](https://i.imgur.com/2Nxgt7U.gif)
 ![*Example with user input and sprites*](https://i.imgur.com/G35t78t.gif)
