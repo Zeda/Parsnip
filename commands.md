@@ -90,9 +90,59 @@ future, the allowed chars will probably be restricted to alphanumeric.
 ## Repeat loop
 Works like in TI-BASIC.
 
-## If
-Currently very limited. It can only conditionally execute one line of code.
-`Then` and `Else` are not yet supported, and `End` isn't used by this.
+## While loop
+Works like in TI-BASIC.
+
+## If... [ElseIf]... [Else]... End
+If you want code to execute only if a `condition` is `true`:
+```
+:If <<condition>>
+:<<code>>
+:End
+```
+
+For example, suppose you want to increment `x` if `[Enter]` is pressed (note
+that `[Enter]` is a [`getKey()`](#getkey) value of 9):
+```
+:If getKey(9)
+:x+1→x
+:End
+```
+*(this is not the most efficient way, you can do `x+getKey(9)→x`)*
+
+If you want to display `"Hello"` if `K`=0, or `"World"` otherwise, you can use
+`Else`:
+```
+:If K=0
+:Disp "Hello"
+:Else
+:Disp "World"
+:End
+```
+
+If you want to display `"Hello"` if `K`=0, and `"World"` if `K`=1, you can use
+`ElseIf`. Note that there are more efficient ways to do this particular example:
+```
+:If K=0
+:Disp "Hello"
+:ElseIf K=1
+:Disp "World"
+:End
+```
+*At this stage of the parser, `ElseIf` is the `Else` token followed by the `If`
+token.*
+
+If you want to display `"Hello"` if `K`=0, `"World"` if `K`=1,
+and `":)"` otherwise, then you can use `Else` with `ElseIf`
+```
+:If K=0
+:Disp "Hello"
+:ElseIf K=1
+:Disp "World"
+:Else
+;Disp ":)"
+:End
+```
 
 ## ClrDraw, ClrHome
 These work basically like in TI-BASIC, but of course ClrDraw doesn't also update
@@ -168,14 +218,27 @@ Add their values to set multiple modes. For example, to set all three:
 SETMODE(7)
 ```
 
+## Set Font
+`SETFONT(val)` can be used to set a font to be used on the graph screen. *The
+syntax of this command is almost certain to change in the future. Fonts may
+change. Font alignment may change.*
+
+- `SETFONT(0)` is a small font (4x6). Text columns are aligned to 4 pixels. That
+means, for example, `Text(Y,1,"?"` will draw at pixel coordinates x=4, and
+`Text(Y,3,"?"` will draw at pixel coordinates x=12, and so on.
+- `SETFONT(1)` this is a variable-width large font.
+- `SETFONT(2)` this also uses the small font, but you can draw text to pixel coordinates. **Default**
+
+
+
+
 ## CHAR()
 `CHAR(val)` converts `val` to a char. For example, to display the `@` symbol:
 ```
 Disp CHAR(64)
 ```
 
-Or if you want to put an `'@'` before a string `Z`:
+Or if you want to put an `'@'` before the string "HELLO":
 ```
-CHAR(64)+"HELLO"→Z
-Disp Z
+Disp CHAR(64)+"HELLO"
 ```
